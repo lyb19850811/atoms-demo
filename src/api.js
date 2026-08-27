@@ -76,11 +76,6 @@ export function publishUrl(id) {
   return `${location.origin}/p/${id}`
 }
 
-// 下载链接：单文件返回 HTML，团队项目返回 ZIP
-export function downloadUrl(id) {
-  return `${location.origin}/api/apps/${id}/download`
-}
-
 // 生成应用的原始 HTML 地址（供 iframe 直接加载）
 export function appHtmlUrl(id) {
   return `${location.origin}/api/apps/${id}/html`

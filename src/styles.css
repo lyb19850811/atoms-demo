@@ -286,14 +286,14 @@ button {
 .ws-body {
   flex: 1;
   display: grid;
-  grid-template-columns: 380px 1fr;
+  grid-template-columns: 360px 1.1fr 1fr;
   min-height: 0;
 }
 
 @media (max-width: 860px) {
   .ws-body {
     grid-template-columns: 1fr;
-    grid-template-rows: 1fr 1fr;
+    grid-template-rows: 1fr 1fr 1fr;
   }
 }
 
@@ -811,6 +811,49 @@ button {
 .preview-empty .big {
   font-size: 56px;
   margin-bottom: 16px;
+}
+
+/* ---------- 产物栏（中间） ---------- */
+.artifacts-panel {
+  display: flex;
+  flex-direction: column;
+  border-right: 1px solid var(--border);
+  min-height: 0;
+  min-width: 0;
+  background: var(--bg-2);
+}
+
+.artifacts-head {
+  padding: 10px 14px;
+  font-size: 13px;
+  font-weight: 600;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+
+.artifacts-tree {
+  max-height: 40%;
+  overflow-y: auto;
+  border-bottom: 1px solid var(--border);
+  padding: 8px 10px;
+  flex-shrink: 0;
+}
+
+.artifacts-code {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  background: #0a0c12;
+}
+
+.artifacts-code pre {
+  margin: 0;
+  padding: 12px;
+  color: #c9d1e0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre;
 }
 
 /* ---------- 应用列表 ---------- */

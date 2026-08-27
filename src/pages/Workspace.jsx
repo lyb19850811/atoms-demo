@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, publishUrl, downloadUrl } from '../api.js'
+import { api, publishUrl } from '../api.js'
 import { getCurrentUser, isOnboarded, markOnboarded } from '../user.js'
 import { getAgent } from '../data/agents.js'
 import ChatPanel from '../components/ChatPanel.jsx'
@@ -9,8 +9,7 @@ import Fireworks from '../components/Fireworks.jsx'
 import PublishDialog from '../components/PublishDialog.jsx'
 import UserMenu from '../components/UserMenu.jsx'
 import FirstRunGuide from '../components/FirstRunGuide.jsx'
-import ArtifactViewer from '../components/ArtifactViewer.jsx'
-import ProjectViewer from '../components/ProjectViewer.jsx'
+import ArtifactsPanel from '../components/ArtifactsPanel.jsx'
 
 const SAMPLES = ['做一个番茄钟', '做一个待办清单', '做一个 BMI 计算器', '做一个成语接龙游戏']
 
@@ -32,7 +31,6 @@ export default function Workspace() {
   const [thinkingText, setThinkingText] = useState('')
   const [phase, setPhase] = useState(null) // 'thinking' | 'writing' | null
   const [showGuide, setShowGuide] = useState(false)
-  const [showCode, setShowCode] = useState(false)
   const abortRef = useRef(null)
   const [teamMode, setTeamMode] = useState(false)
   const [plan, setPlan] = useState(null) // {id, title, plan}
@@ -291,6 +289,15 @@ export default function Workspace() {
     }
   }
 
+  // 派生：中间栏产物文件 + 右侧预览 HTML
+  const previewHtml = files.length > 0 ? (files.find((f) => f.path === entry)?.content || '') : (app?.html || '')
+  const artifactFiles = files.length > 0
+    ? files
+    : [
+        ...(app?.html ? [{ path: 'index.html', content: app.html }] : []),
+        ...(app?.plan ? [{ path: '计划.md', content: app.plan }] : [])
+      ]
+
   return (
     <div className="workspace">
       <header className="workspace-header">
@@ -300,8 +307,6 @@ export default function Workspace() {
           {app?.title && <span className="app-name">· {app.title}</span>}
         </div>
         <div className="ws-spacer" />
-        <button className="btn btn-sm btn-ghost" onClick={() => setShowCode(true)} disabled={!app?.id}>产物</button>
-        <button className="btn btn-sm btn-ghost" onClick={() => window.open(downloadUrl(app.id), '_blank')} disabled={!app?.id}>下载</button>
         <button className="btn btn-sm btn-ghost" onClick={() => nav('/apps')}>我的应用</button>
         {published ? (
           <button className="btn btn-sm btn-primary" onClick={showPublishInfo}>✅ 已发布</button>
@@ -327,15 +332,11 @@ export default function Workspace() {
           building={building}
           onConfirmPlan={onConfirmPlan}
         />
-        {files.length > 0 ? (
-          <ProjectViewer files={files} entry={entry} />
-        ) : (
-          <PreviewFrame html={app?.html || ''} error={error} />
-        )}
+        <ArtifactsPanel files={artifactFiles} />
+        <PreviewFrame html={previewHtml} error={error} />
       </div>
       {toast && <div className="toast">{toast}</div>}
       {showGuide && <FirstRunGuide onClose={closeGuide} />}
-      {showCode && <ArtifactViewer app={app} files={files} onClose={() => setShowCode(false)} />}
       <Fireworks active={fireworks} onDone={() => setFireworks(false)} />
       <PublishDialog
         url={publishDialog?.url}
