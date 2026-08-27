@@ -1,5 +1,6 @@
 import { useNavigate } from 'react-router-dom'
 import { getCurrentUser } from '../user.js'
+import UserMenu from '../components/UserMenu.jsx'
 
 export default function Landing() {
   const nav = useNavigate()
@@ -7,6 +8,11 @@ export default function Landing() {
 
   return (
     <div className="page">
+      {user && (
+        <div className="landing-user">
+          <UserMenu />
+        </div>
+      )}
       <div className="hero">
         <div className="logo">
           <span className="logo-badge">✦</span> Mini Atoms

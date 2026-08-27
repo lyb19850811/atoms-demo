@@ -6,6 +6,7 @@ import ChatPanel from '../components/ChatPanel.jsx'
 import PreviewFrame from '../components/PreviewFrame.jsx'
 import Fireworks from '../components/Fireworks.jsx'
 import PublishDialog from '../components/PublishDialog.jsx'
+import UserMenu from '../components/UserMenu.jsx'
 
 const SAMPLES = ['做一个番茄钟', '做一个待办清单', '做一个 BMI 计算器', '做一个成语接龙游戏']
 
@@ -134,6 +135,7 @@ export default function Workspace() {
         ) : (
           <button className="btn btn-sm btn-primary" onClick={publish} disabled={!app?.id}>🚀 发布</button>
         )}
+        <UserMenu />
       </header>
 
       <div className="ws-body">

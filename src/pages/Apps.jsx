@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { api, publishUrl } from '../api.js'
 import { getCurrentUser } from '../user.js'
+import UserMenu from '../components/UserMenu.jsx'
 
 function relTime(ts) {
   const diff = Date.now() - ts
@@ -32,7 +33,10 @@ export default function Apps() {
       <div className="container">
         <div className="page-head">
           <h2>我的应用</h2>
-          <button className="btn btn-primary" onClick={() => nav('/workspace')}>＋ 新建应用</button>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 14 }}>
+            <UserMenu />
+            <button className="btn btn-primary" onClick={() => nav('/workspace')}>＋ 新建应用</button>
+          </div>
         </div>
         {error && <div className="error-banner">{error}</div>}
         {apps.length === 0 && !error ? (
