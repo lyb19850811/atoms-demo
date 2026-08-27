@@ -1,8 +1,9 @@
 import { useState } from 'react'
 import FileTree from './FileTree.jsx'
 
-// 项目查看器：文件树 + 预览/代码
-export default function ProjectViewer({ files, entry, selectedPath, onSelect }) {
+// 项目查看器：文件树 + 预览/代码（自包含，内部管理选中文件）
+export default function ProjectViewer({ files, entry }) {
+  const [selectedPath, setSelectedPath] = useState(entry || '')
   const [tab, setTab] = useState('preview')
   const entryFile = (files || []).find((f) => f.path === entry)
   const selectedFile = (files || []).find((f) => f.path === selectedPath) || entryFile
@@ -10,7 +11,7 @@ export default function ProjectViewer({ files, entry, selectedPath, onSelect }) 
   return (
     <div className="project-viewer">
       <div className="project-filetree">
-        <FileTree files={files} selectedPath={selectedPath} onSelect={onSelect} />
+        <FileTree files={files} selectedPath={selectedPath} onSelect={setSelectedPath} />
       </div>
       <div className="project-content">
         <div className="project-tabs">

@@ -8,28 +8,42 @@ router.get('/', (req, res) => {
   const { userId } = req.query
   if (!userId) return res.status(400).json({ error: '缺少 userId' })
   const rows = db
-    .prepare('SELECT id, title, prompt, published, created_at, updated_at FROM apps WHERE user_id = ? ORDER BY updated_at DESC')
+    .prepare('SELECT id, title, prompt, mode, published, created_at, updated_at FROM apps WHERE user_id = ? ORDER BY updated_at DESC')
     .all(userId)
   res.json(rows)
 })
 
-// 单个应用详情（含对话历史）
+// 单个应用详情（含对话历史 + 项目文件）
 router.get('/:id', (req, res) => {
   const app = db.prepare('SELECT * FROM apps WHERE id = ?').get(req.params.id)
   if (!app) return res.status(404).json({ error: '应用不存在' })
   const messages = db
     .prepare('SELECT role, content, thinking, created_at FROM messages WHERE app_id = ? ORDER BY id ASC')
     .all(app.id)
-  res.json({ ...app, messages })
+  const files = db.prepare('SELECT path, content, kind FROM files WHERE app_id = ? ORDER BY path').all(app.id)
+  res.json({ ...app, messages, files })
 })
 
-// 生成应用的原始 HTML（供分享页 iframe 直接加载）
+// 生成应用的原始 HTML（供分享页 iframe 直接加载）：团队模式返回入口文件
 router.get('/:id/html', (req, res) => {
-  const app = db.prepare('SELECT html FROM apps WHERE id = ?').get(req.params.id)
+  const app = db.prepare('SELECT id, mode, entry, html FROM apps WHERE id = ?').get(req.params.id)
   if (!app) return res.status(404).send('应用不存在')
+  let html = app.html
+  if (app.mode === 'team' && app.entry) {
+    const f = db.prepare('SELECT content FROM files WHERE app_id = ? AND path = ?').get(app.id, app.entry)
+    if (f) html = f.content
+  }
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('X-Content-Type-Options', 'nosniff')
-  res.send(app.html)
+  res.send(html)
+})
+
+// 项目文件列表（团队模式产物）
+router.get('/:id/files', (req, res) => {
+  const app = db.prepare('SELECT id, mode, entry FROM apps WHERE id = ?').get(req.params.id)
+  if (!app) return res.status(404).json({ error: '应用不存在' })
+  const files = db.prepare('SELECT path, content, kind FROM files WHERE app_id = ? ORDER BY path').all(app.id)
+  res.json({ mode: app.mode, entry: app.entry, files })
 })
 
 // 发布 / 取消发布：切换应用在 /p/:id 的独立访问状态

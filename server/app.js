@@ -33,13 +33,18 @@ app.use('/api/generate', rateLimit({ windowMs: 60000, max: 10 }), generateRouter
 app.use('/api/team', rateLimit({ windowMs: 60000, max: 10 }), teamRouter)
 app.use('/api/admin', adminRouter)
 
-// 应用独立访问 URL：直接返回生成应用的完整 HTML（统一入口，/p/:id 即应用的链接）
+// 应用独立访问 URL：单文件模式返回 html；团队模式返回入口文件内容
 app.get('/p/:id', (req, res) => {
-  const app = db.prepare('SELECT html FROM apps WHERE id = ?').get(req.params.id)
+  const app = db.prepare('SELECT id, mode, entry, html FROM apps WHERE id = ?').get(req.params.id)
   if (!app) return res.status(404).send('应用不存在')
+  let html = app.html
+  if (app.mode === 'team' && app.entry) {
+    const f = db.prepare('SELECT content FROM files WHERE app_id = ? AND path = ?').get(app.id, app.entry)
+    if (f) html = f.content
+  }
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('X-Content-Type-Options', 'nosniff')
-  res.send(app.html)
+  res.send(html)
 })
 
 // 生产环境：托管前端构建产物（单端口，无 CORS）

@@ -579,6 +579,16 @@ button {
   font-style: normal;
 }
 
+.chat-team-note {
+  font-size: 13px;
+  color: var(--accent-3);
+  background: rgba(34, 211, 238, 0.08);
+  border: 1px solid rgba(34, 211, 238, 0.25);
+  border-radius: 8px;
+  padding: 8px 12px;
+  margin-bottom: 10px;
+}
+
 /* ---------- 功能菜单 ---------- */
 .feature-menu {
   position: relative;
@@ -972,6 +982,16 @@ button {
   height: 100%;
   border: none;
   background: #fff;
+}
+
+.artifact-project-wrap {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+}
+
+.artifact-project-wrap .project-viewer {
+  width: 100%;
 }
 
 /* ---------- 团队模式：计划卡 + 步骤卡 ---------- */

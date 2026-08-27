@@ -39,7 +39,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
   function handleChange(e) {
     const v = e.target.value
     setInput(v)
-    setAgentMenu(v.endsWith('@'))
+    setAgentMenu(v.endsWith('@') && !teamMode)
   }
 
   function selectAgent(id) {
@@ -128,17 +128,23 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
       </div>
 
       <div className="chat-input">
-        <AgentBar activeId={activeAgent} onSelect={setActiveAgent} />
-        <div className="chat-agent-status">
-          <span>当前智能体：</span>
-          <span className="chat-agent-name"><em>{activeInfo.emoji}</em> {activeInfo.name} · {activeInfo.role}</span>
-        </div>
+        {teamMode ? (
+          <div className="chat-team-note">🤝 团队模式：团队组长自动编排（产品经理 → 架构师 → 工程师）</div>
+        ) : (
+          <>
+            <AgentBar activeId={activeAgent} onSelect={setActiveAgent} />
+            <div className="chat-agent-status">
+              <span>当前智能体：</span>
+              <span className="chat-agent-name"><em>{activeInfo.emoji}</em> {activeInfo.name} · {activeInfo.role}</span>
+            </div>
+          </>
+        )}
         <textarea
           ref={taRef}
           value={input}
           onChange={handleChange}
           onKeyDown={onKeyDown}
-          placeholder={messages.length > 0 ? `继续描述，@${activeInfo.name} 会接手…` : `请@${activeInfo.name}，例如：做一个番茄钟`}
+          placeholder={teamMode ? '描述你的项目需求，例如：做一个五子棋游戏（支持人机对战）' : (messages.length > 0 ? `继续描述，@${activeInfo.name} 会接手…` : `请@${activeInfo.name}，例如：做一个番茄钟`)}
           disabled={generating}
         />
         {agentMenu && (
@@ -161,7 +167,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
             <button className="btn btn-stop" onClick={onStop}>⏹ 停止</button>
           ) : (
             <button className="btn btn-primary" onClick={submit} disabled={!input.trim()}>
-              以{activeInfo.name}构建
+              {teamMode ? '开始规划' : `以${activeInfo.name}构建`}
             </button>
           )}
         </div>

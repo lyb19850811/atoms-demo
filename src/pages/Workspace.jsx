@@ -41,7 +41,6 @@ export default function Workspace() {
   const [building, setBuilding] = useState(false)
   const [files, setFiles] = useState([]) // 团队模式项目文件
   const [entry, setEntry] = useState('')
-  const [selectedFile, setSelectedFile] = useState('')
 
   useEffect(() => {
     if (!userId) {
@@ -82,6 +81,8 @@ export default function Workspace() {
     setPhase('thinking')
     setThinkingText('')
     setMessages((m) => [...m, { role: 'user', content: prompt }])
+    setFiles([])
+    setEntry('')
     let thinkingAccum = ''
     const controller = new AbortController()
     abortRef.current = controller
@@ -140,6 +141,7 @@ export default function Workspace() {
     setSteps([])
     setFiles([])
     setEntry('')
+    setApp(null)
     const controller = new AbortController()
     abortRef.current = controller
     try {
@@ -149,6 +151,7 @@ export default function Workspace() {
           thinking: (d) => setThinkingText((t) => t + d.text),
           done_plan: (d) => {
             setPlan(d)
+            setApp({ id: d.id, title: d.title, mode: 'team', html: '' })
             setMessages((m) => [...m, { role: 'assistant', content: '团队计划已生成，请确认后开始开发。' }])
           },
           error: (d) => {
@@ -191,6 +194,7 @@ export default function Workspace() {
           done: (d) => {
             setFiles(d.files || [])
             setEntry(d.entry || '')
+            setApp((a) => ({ ...(a || { id: d.id }), mode: 'team', entry: d.entry, title: d.title }))
             setPlan(null)
             setMessages((m) => [...m, { role: 'assistant', content: `团队已完成「${d.title}」，可在右侧浏览项目文件与预览。` }])
           },
@@ -278,15 +282,15 @@ export default function Workspace() {
           building={building}
           onConfirmPlan={confirmBuild}
         />
-        {teamMode && files.length > 0 ? (
-          <ProjectViewer files={files} entry={entry} selectedPath={selectedFile} onSelect={setSelectedFile} />
+        {files.length > 0 ? (
+          <ProjectViewer files={files} entry={entry} />
         ) : (
           <PreviewFrame html={app?.html || ''} device={device} error={error} />
         )}
       </div>
       {toast && <div className="toast">{toast}</div>}
       {showGuide && <FirstRunGuide onClose={closeGuide} />}
-      {showCode && <ArtifactViewer html={app?.html || ''} title={app?.title} onClose={() => setShowCode(false)} />}
+      {showCode && <ArtifactViewer app={app} files={files} onClose={() => setShowCode(false)} />}
       <Fireworks active={fireworks} onDone={() => setFireworks(false)} />
       <PublishDialog
         url={publishDialog?.url}

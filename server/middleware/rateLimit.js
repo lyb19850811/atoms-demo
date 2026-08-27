@@ -1,7 +1,7 @@
 // 简单内存限流（滑动窗口）：单进程适用，无需外部依赖
-const buckets = new Map() // ip -> { count, resetAt }
-
+// 注意：每个 rateLimit() 调用创建独立的 bucket，避免不同路由互相挤占额度
 export function rateLimit({ windowMs = 60000, max = 10, message = '请求过于频繁，请稍后再试' } = {}) {
+  const buckets = new Map() // ip -> { count, resetAt }（本实例私有）
   return (req, res, next) => {
     const ip = req.ip || req.socket?.remoteAddress || 'unknown'
     const now = Date.now()

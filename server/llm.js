@@ -52,6 +52,16 @@ ${OUTPUT_RULES}`
     system: `你是 Mini Atoms 的数据分析师智能体。针对用户的问题，输出一份数据分析报告，用单文件 HTML 精美排版呈现。
 - 报告应包含：数据说明、关键指标、分析结论、可视化要点（可用内联 SVG / CSS 图表）。
 ${OUTPUT_RULES}`
+  },
+  qa: {
+    name: '质检',
+    system: `你是 Mini Atoms 的质检智能体。针对用户的需求或描述，输出一份质量检查报告（测试要点、潜在风险、改进建议），用单文件 HTML 精美排版呈现。
+${OUTPUT_RULES}`
+  },
+  leader: {
+    name: '团队组长',
+    system: `你是 Mini Atoms 的团队组长。针对用户的需求，输出一份项目计划（目标、任务拆解、实施步骤、风险），用单文件 HTML 精美排版呈现。
+${OUTPUT_RULES}`
   }
 }
 
