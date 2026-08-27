@@ -17,21 +17,22 @@ function relTime(ts) {
 export default function Apps() {
   const nav = useNavigate()
   const user = getCurrentUser()
+  const userId = user?.id
   const [apps, setApps] = useState([])
   const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       nav('/register')
       return
     }
     setLoading(true)
-    api.listApps(user.id)
+    api.listApps(userId)
       .then(setApps)
       .catch((e) => setError(e.message))
       .finally(() => setLoading(false))
-  }, [user, nav])
+  }, [userId, nav])
 
   return (
     <div className="page">

@@ -16,6 +16,7 @@ export default function Workspace() {
   const nav = useNavigate()
   const [params] = useSearchParams()
   const user = getCurrentUser()
+  const userId = user?.id
   const editId = params.get('edit')
 
   const [app, setApp] = useState(null) // { id, title, html, ... }
@@ -33,7 +34,7 @@ export default function Workspace() {
   const [showCode, setShowCode] = useState(false)
 
   useEffect(() => {
-    if (!user) {
+    if (!userId) {
       nav('/register')
       return
     }
@@ -48,7 +49,7 @@ export default function Workspace() {
         })
         .catch((e) => setError(e.message))
     }
-  }, [user, editId, nav])
+  }, [userId, editId, nav])
 
   function flashToast(msg) {
     setToast(msg)
