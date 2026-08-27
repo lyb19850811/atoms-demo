@@ -9,23 +9,49 @@ async function request(path, options = {}) {
   return data
 }
 
+// 流式请求：解析后端 SSE（event: xxx / data: {...}），按事件名分发到 handlers
+async function streamRequest(path, payload, handlers) {
+  const res = await fetch(path, {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  })
+  if (!res.ok) {
+    const data = await res.json().catch(() => ({}))
+    throw new Error(data.error || `请求失败(${res.status})`)
+  }
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split('\n\n')
+    buffer = parts.pop()
+    for (const part of parts) {
+      let event = 'message'
+      let dataStr = ''
+      for (const line of part.split('\n')) {
+        const t = line.trim()
+        if (t.startsWith('event:')) event = t.slice(6).trim()
+        else if (t.startsWith('data:')) dataStr += t.slice(5).trim()
+      }
+      if (!dataStr) continue
+      let data
+      try {
+        data = JSON.parse(dataStr)
+      } catch {
+        continue
+      }
+      handlers[event]?.(data)
+    }
+  }
+}
+
 export const api = {
   register: (nickname) => request('/api/users', { method: 'POST', body: { nickname } }),
-  // 生成耗时较长（约 10-30s），网关可能偶发 5xx，自动重试一次
-  generate: async (payload) => {
-    for (let attempt = 0; ; attempt++) {
-      try {
-        return await request('/api/generate', { method: 'POST', body: payload })
-      } catch (e) {
-        const msg = e?.message || ''
-        if (attempt === 0 && /502|503|504|500|fetch|network|Failed to fetch/i.test(msg)) {
-          await new Promise((r) => setTimeout(r, 1500))
-          continue
-        }
-        throw e
-      }
-    }
-  },
+  generateStream: (payload, handlers) => streamRequest('/api/generate', payload, handlers),
   listApps: (userId) => request(`/api/apps?userId=${encodeURIComponent(userId)}`),
   getApp: (id) => request(`/api/apps/${id}`),
   publish: (id, published) => request(`/api/apps/${id}/publish`, { method: 'POST', body: { published } })

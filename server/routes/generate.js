@@ -1,28 +1,47 @@
 import { Router } from 'express'
 import crypto from 'node:crypto'
 import db from '../db.js'
-import { generateApp } from '../llm.js'
+import { streamGenerate } from '../llm.js'
 
 const router = Router()
 
-// 核心闭环：生成 / 修改应用
+// 核心闭环：生成 / 修改应用（SSE 流式，实时推送思考过程与结果）
 // body: { appId?, prompt, userId? }  有 appId 表示基于已有应用迭代，否则新建
 router.post('/', async (req, res) => {
-  try {
-    const prompt = String(req.body?.prompt || '').trim()
-    if (!prompt) return res.status(400).json({ error: '请输入需求描述' })
-    if (prompt.length > 2000) return res.status(400).json({ error: '需求描述过长' })
+  const prompt = String(req.body?.prompt || '').trim()
+  if (!prompt) return res.status(400).json({ error: '请输入需求描述' })
+  if (prompt.length > 2000) return res.status(400).json({ error: '需求描述过长' })
 
-    let app = null
-    if (req.body?.appId) {
-      app = db.prepare('SELECT * FROM apps WHERE id = ?').get(req.body.appId)
-      if (!app) return res.status(404).json({ error: '应用不存在' })
+  let app = null
+  if (req.body?.appId) {
+    app = db.prepare('SELECT * FROM apps WHERE id = ?').get(req.body.appId)
+    if (!app) return res.status(404).json({ error: '应用不存在' })
+  }
+
+  // SSE 响应头
+  res.setHeader('Content-Type', 'text/event-stream; charset=utf-8')
+  res.setHeader('Cache-Control', 'no-cache, no-transform')
+  res.setHeader('Connection', 'keep-alive')
+  res.setHeader('X-Accel-Buffering', 'no')
+  res.flushHeaders()
+
+  const send = (event, data) => res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+
+  let title = ''
+  let html = ''
+  try {
+    for await (const chunk of streamGenerate({ prompt, currentHtml: app?.html || null })) {
+      if (chunk.type === 'thinking') send('thinking', { text: chunk.text })
+      else if (chunk.type === 'writing') send('writing', { text: chunk.text })
+      else if (chunk.type === 'done') {
+        title = chunk.title
+        html = chunk.html
+      }
     }
 
-    const { title, html } = await generateApp({ prompt, currentHtml: app?.html || null })
+    // 持久化
     const now = Date.now()
     let id = app?.id
-
     if (app) {
       db.prepare('UPDATE apps SET title = ?, html = ?, updated_at = ? WHERE id = ?').run(title, html, now, id)
     } else {
@@ -36,11 +55,12 @@ router.post('/', async (req, res) => {
     insertMsg.run(id, 'user', prompt, now)
     insertMsg.run(id, 'assistant', `已生成「${title}」`, now)
 
-    res.json({ id, title, html })
+    send('done', { id, title, html })
   } catch (e) {
     console.error('[generate]', e.message)
-    res.status(500).json({ error: e.message || '生成失败，请稍后重试' })
+    send('error', { message: e.message || '生成失败，请稍后重试' })
   }
+  res.end()
 })
 
 export default router

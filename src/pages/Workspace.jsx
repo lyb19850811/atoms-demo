@@ -24,6 +24,8 @@ export default function Workspace() {
   const [published, setPublished] = useState(false)
   const [fireworks, setFireworks] = useState(false)
   const [publishDialog, setPublishDialog] = useState(null)
+  const [thinkingText, setThinkingText] = useState('')
+  const [phase, setPhase] = useState(null) // 'thinking' | 'writing' | null
 
   useEffect(() => {
     if (!user) {
@@ -51,17 +53,33 @@ export default function Workspace() {
     if (generating) return
     setError('')
     setGenerating(true)
+    setPhase('thinking')
+    setThinkingText('')
     setMessages((m) => [...m, { role: 'user', content: prompt }])
     try {
-      const res = await api.generate({ appId: app?.id, prompt, userId: user?.id })
-      setApp(res)
-      if (!app?.id) setPublished(false)
-      setMessages((m) => [...m, { role: 'assistant', content: `已生成「${res.title}」，可在右侧预览。继续描述你的修改想法即可迭代。` }])
+      await api.generateStream(
+        { appId: app?.id, prompt, userId: user?.id },
+        {
+          thinking: (d) => setThinkingText((t) => t + d.text),
+          writing: () => setPhase('writing'),
+          done: (d) => {
+            setApp(d)
+            if (!app?.id) setPublished(false)
+            setMessages((m) => [...m, { role: 'assistant', content: `已生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。` }])
+          },
+          error: (d) => {
+            setError(d.message)
+            setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${d.message}` }])
+          }
+        }
+      )
     } catch (e) {
       setError(e.message)
       setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${e.message}` }])
     } finally {
       setGenerating(false)
+      setPhase(null)
+      setThinkingText('')
     }
   }
 
@@ -132,6 +150,8 @@ export default function Workspace() {
         <ChatPanel
           messages={messages}
           generating={generating}
+          thinkingText={thinkingText}
+          phase={phase}
           samples={SAMPLES}
           onSend={handleSend}
         />
