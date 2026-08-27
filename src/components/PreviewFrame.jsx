@@ -1,4 +1,4 @@
-export default function PreviewFrame({ html, device, error }) {
+export default function PreviewFrame({ html, error }) {
   return (
     <div className="preview">
       <div className="preview-toolbar">
@@ -6,11 +6,11 @@ export default function PreviewFrame({ html, device, error }) {
         <span className="ws-spacer" />
         {html && <span style={{ color: '#5b6478' }}>沙箱隔离运行</span>}
       </div>
-      <div className={`preview-stage ${device === 'mobile' ? 'mobile' : ''}`}>
+      <div className="preview-stage">
         {html ? (
           <iframe
             key={html}
-            className={`frame ${device === 'mobile' ? 'mobile' : ''}`}
+            className="frame"
             sandbox="allow-scripts allow-forms allow-modals"
             srcDoc={html}
             title="应用预览"

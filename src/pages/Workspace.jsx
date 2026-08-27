@@ -25,7 +25,6 @@ export default function Workspace() {
   const [messages, setMessages] = useState([])
   const [generating, setGenerating] = useState(false)
   const [error, setError] = useState('')
-  const [device, setDevice] = useState('desktop')
   const [toast, setToast] = useState('')
   const [published, setPublished] = useState(false)
   const [fireworks, setFireworks] = useState(false)
@@ -301,10 +300,6 @@ export default function Workspace() {
           {app?.title && <span className="app-name">· {app.title}</span>}
         </div>
         <div className="ws-spacer" />
-        <div className="seg">
-          <button className={device === 'desktop' ? 'active' : ''} onClick={() => setDevice('desktop')}>桌面</button>
-          <button className={device === 'mobile' ? 'active' : ''} onClick={() => setDevice('mobile')}>移动</button>
-        </div>
         <button className="btn btn-sm btn-ghost" onClick={() => setShowCode(true)} disabled={!app?.id}>产物</button>
         <button className="btn btn-sm btn-ghost" onClick={() => window.open(downloadUrl(app.id), '_blank')} disabled={!app?.id}>下载</button>
         <button className="btn btn-sm btn-ghost" onClick={() => nav('/apps')}>我的应用</button>
@@ -335,7 +330,7 @@ export default function Workspace() {
         {files.length > 0 ? (
           <ProjectViewer files={files} entry={entry} />
         ) : (
-          <PreviewFrame html={app?.html || ''} device={device} error={error} />
+          <PreviewFrame html={app?.html || ''} error={error} />
         )}
       </div>
       {toast && <div className="toast">{toast}</div>}
