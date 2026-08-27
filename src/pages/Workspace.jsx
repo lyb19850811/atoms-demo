@@ -9,7 +9,7 @@ import Fireworks from '../components/Fireworks.jsx'
 import PublishDialog from '../components/PublishDialog.jsx'
 import UserMenu from '../components/UserMenu.jsx'
 import FirstRunGuide from '../components/FirstRunGuide.jsx'
-import CodeViewer from '../components/CodeViewer.jsx'
+import ArtifactViewer from '../components/ArtifactViewer.jsx'
 
 const SAMPLES = ['做一个番茄钟', '做一个待办清单', '做一个 BMI 计算器', '做一个成语接龙游戏']
 
@@ -124,7 +124,7 @@ export default function Workspace() {
       setPublished(true)
       setFireworks(true)
       const url = publishUrl(app.id)
-      setTimeout(() => setPublishDialog({ url }), 500)
+      setTimeout(() => setPublishDialog({ url, justPublished: true }), 500)
     } catch (e) {
       setError(e.message)
     }
@@ -132,7 +132,7 @@ export default function Workspace() {
 
   function showPublishInfo() {
     if (!app?.id) return
-    setPublishDialog({ url: publishUrl(app.id) })
+    setPublishDialog({ url: publishUrl(app.id), justPublished: false })
   }
 
   async function unpublish() {
@@ -140,6 +140,7 @@ export default function Workspace() {
     try {
       await api.publish(app.id, false)
       setPublished(false)
+      setPublishDialog(null)
       flashToast('已取消发布')
     } catch (e) {
       setError(e.message)
@@ -159,13 +160,10 @@ export default function Workspace() {
           <button className={device === 'desktop' ? 'active' : ''} onClick={() => setDevice('desktop')}>桌面</button>
           <button className={device === 'mobile' ? 'active' : ''} onClick={() => setDevice('mobile')}>移动</button>
         </div>
-        <button className="btn btn-sm btn-ghost" onClick={() => setShowCode(true)} disabled={!app?.id}>代码</button>
+        <button className="btn btn-sm btn-ghost" onClick={() => setShowCode(true)} disabled={!app?.id}>产物</button>
         <button className="btn btn-sm btn-ghost" onClick={() => nav('/apps')}>我的应用</button>
         {published ? (
-          <>
-            <button className="btn btn-sm btn-ghost" onClick={unpublish}>取消发布</button>
-            <button className="btn btn-sm btn-primary" onClick={showPublishInfo}>✅ 已发布</button>
-          </>
+          <button className="btn btn-sm btn-primary" onClick={showPublishInfo}>✅ 已发布</button>
         ) : (
           <button className="btn btn-sm btn-primary" onClick={publish} disabled={!app?.id}>🚀 发布</button>
         )}
@@ -186,9 +184,14 @@ export default function Workspace() {
       </div>
       {toast && <div className="toast">{toast}</div>}
       {showGuide && <FirstRunGuide onClose={closeGuide} />}
-      {showCode && <CodeViewer html={app?.html || ''} onClose={() => setShowCode(false)} />}
+      {showCode && <ArtifactViewer html={app?.html || ''} title={app?.title} onClose={() => setShowCode(false)} />}
       <Fireworks active={fireworks} onDone={() => setFireworks(false)} />
-      <PublishDialog url={publishDialog?.url} onClose={() => setPublishDialog(null)} />
+      <PublishDialog
+        url={publishDialog?.url}
+        justPublished={publishDialog?.justPublished}
+        onUnpublish={unpublish}
+        onClose={() => setPublishDialog(null)}
+      />
     </div>
   )
 }
