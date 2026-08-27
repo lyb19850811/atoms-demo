@@ -40,6 +40,7 @@ export default function Workspace() {
   const [entry, setEntry] = useState('')
   const [openTabs, setOpenTabs] = useState([]) // 右侧预览栏打开的文件标签
   const [activeTab, setActiveTab] = useState('')
+  const [artifactsCollapsed, setArtifactsCollapsed] = useState(false)
 
   useEffect(() => {
     if (!userId) {
@@ -349,7 +350,7 @@ export default function Workspace() {
         <UserMenu />
       </header>
 
-      <div className="ws-body">
+      <div className={`ws-body${artifactsCollapsed ? ' artifacts-collapsed' : ''}`}>
         <ChatPanel
           messages={messages}
           generating={generating || building}
@@ -365,8 +366,14 @@ export default function Workspace() {
           building={building}
           onConfirmPlan={onConfirmPlan}
         />
-        <ArtifactsPanel files={artifactFiles} activePath={activeTab} onOpenFile={openFile} />
         <TabbedPreview tabs={openTabs} activePath={activeTab} onActivate={setActiveTab} onClose={closeTab} />
+        <ArtifactsPanel
+          files={artifactFiles}
+          activePath={activeTab}
+          onOpenFile={openFile}
+          collapsed={artifactsCollapsed}
+          onToggle={() => setArtifactsCollapsed((v) => !v)}
+        />
       </div>
       {toast && <div className="toast">{toast}</div>}
       {showGuide && <FirstRunGuide onClose={closeGuide} />}
