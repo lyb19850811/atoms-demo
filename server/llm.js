@@ -2,7 +2,9 @@
 const BASE = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
 const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash'
 
-// 通用输出格式规则（各智能体共用）：输出单文件 HTML
+// 通用输出格式规则（单文件模式）
+const THINKING_HINT = `\n\n【思考要求】不要展开思考，直接列出你的产出要点清单，每条一句话，然后立即输出 JSON。`
+
 const OUTPUT_RULES = `严格输出规则：
 1. 只输出一个 JSON 对象，格式为 {"title":"简短标题","html":"完整HTML代码字符串"}。不要输出任何其他文字、解释或 markdown 代码块标记。
 2. html 必须是完整自包含的单文件 HTML（包含 <!DOCTYPE html>），所有 CSS 写在 <style> 内，所有 JS 写在 <script> 内。
@@ -12,7 +14,7 @@ const OUTPUT_RULES = `严格输出规则：
 
 当用户是「修改」需求时，我会在用户消息里提供当前内容的完整代码，请基于它做最小必要修改，保留未提及的原有部分，然后输出修改后的完整新代码。`
 
-// 各智能体角色的系统提示词
+// 各智能体角色的系统提示词（单文件模式）
 const AGENT_PROMPTS = {
   engineer: {
     name: '工程师',
@@ -53,12 +55,50 @@ ${OUTPUT_RULES}`
   }
 }
 
+// 团队模式各阶段智能体（输出多文件项目）
+const TEAM_AGENTS = {
+  leader: {
+    name: '团队组长',
+    system: `你是 Mini Atoms 的团队组长 Mike。用户会描述一个需求，你把它拆解成一个清晰的开发计划。
+严格输出一个 JSON 对象，格式：{"title":"简短项目名","plan":"markdown 格式的开发计划","steps":[{"agent":"pm","task":"..."},{"agent":"architect","task":"..."},{"agent":"engineer","task":"..."}]}
+- plan 用 markdown，应包含：项目概述、功能拆解、技术栈建议、实施步骤。
+- steps 固定为 pm → architect → engineer 三步，task 分别描述各自要做什么。`
+  },
+  pm: {
+    name: '产品经理',
+    system: `你是 Mini Atoms 的产品经理智能体。根据用户需求与团队计划，输出一份产品需求文档（PRD）。
+严格输出一个 JSON 对象，格式：{"summary":"一句话摘要","files":[{"path":"docs/requirements.md","content":"markdown 格式的 PRD"}]}
+- PRD 应包含：产品概述、目标用户、核心功能、用户故事、成功指标。`
+  },
+  architect: {
+    name: '架构师',
+    system: `你是 Mini Atoms 的架构师智能体。根据需求与 PRD，输出技术架构设计方案。
+严格输出一个 JSON 对象，格式：{"summary":"一句话摘要","files":[{"path":"docs/architecture.md","content":"markdown 架构文档"}]}
+- 架构文档应包含：技术选型、模块划分、数据模型、目录结构、关键设计决策。`
+  },
+  engineer: {
+    name: '工程师',
+    system: `你是 Mini Atoms 的全栈工程师智能体。根据需求、PRD、架构方案，生成一个可运行的前端页面 + 后端代码骨架。
+严格输出一个 JSON 对象，格式：{"summary":"一句话摘要","entry":"frontend/index.html","files":[{"path":"...","content":"..."}, ...]}
+files 至少包含：
+- frontend/index.html：完整自包含的单文件 HTML（CSS 在 <style>、JS 在 <script>、禁止外部资源、真实可交互、可作为预览入口）
+- backend/main.py：FastAPI 应用骨架（含路由占位与数据模型）
+- backend/models.py：数据模型
+- requirements.txt
+- README.md：项目说明`
+  }
+}
+
 export function getAgentInfo(agent) {
   return AGENT_PROMPTS[agent] || AGENT_PROMPTS.engineer
 }
 
-function buildMessages(agentDef, prompt, currentHtml) {
-  const messages = [{ role: 'system', content: agentDef.system }]
+export function getTeamAgent(agent) {
+  return TEAM_AGENTS[agent] || TEAM_AGENTS.engineer
+}
+
+function buildSingleMessages(agentDef, prompt, currentHtml) {
+  const messages = [{ role: 'system', content: agentDef.system + THINKING_HINT }]
   if (currentHtml) {
     messages.push({
       role: 'user',
@@ -115,16 +155,10 @@ export function parseResult(text) {
   return { title: '我的应用', html }
 }
 
-// 流式生成：逐块产出事件
-//   { type: 'thinking', text }  真实思考过程（reasoning_content）
-//   { type: 'writing',  text }  正在输出最终内容
-//   { type: 'done', title, html } 完成（已解析）
-export async function* streamGenerate({ prompt, currentHtml, agent }) {
+// 底层流式调用：逐块产出 thinking/content，结束产出 done { content, reasoning }
+async function* rawStream(messages) {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) throw new Error('服务端未配置 DEEPSEEK_API_KEY')
-
-  const agentDef = getAgentInfo(agent)
-  const messages = buildMessages(agentDef, prompt, currentHtml)
 
   const controller = new AbortController()
   const timer = setTimeout(() => controller.abort(), 180000)
@@ -184,16 +218,39 @@ export async function* streamGenerate({ prompt, currentHtml, agent }) {
         }
         if (delta.content) {
           content += delta.content
-          yield { type: 'writing', text: delta.content }
+          yield { type: 'content', text: delta.content }
         }
       } catch {
         /* 忽略无法解析的行 */
       }
     }
   }
+  yield { type: 'done', content, reasoning }
+}
 
+// 通用流式补全：给定 system + user，产出 thinking/content/done{content}
+export async function* streamCompletion({ system, user }) {
+  const messages = [{ role: 'system', content: system + THINKING_HINT }, { role: 'user', content: user }]
+  yield* rawStream(messages)
+}
+
+// 单文件模式：流式生成应用
+//   产出 { type:'thinking' } { type:'writing' } { type:'done', title, html }
+export async function* streamGenerate({ prompt, currentHtml, agent }) {
+  const agentDef = getAgentInfo(agent)
+  const messages = buildSingleMessages(agentDef, prompt, currentHtml)
+  let content = ''
+  for await (const c of rawStream(messages)) {
+    if (c.type === 'thinking') yield { type: 'thinking', text: c.text }
+    else if (c.type === 'content') {
+      content += c.text
+      yield { type: 'writing', text: c.text }
+    } else if (c.type === 'done') {
+      content = c.content
+    }
+  }
   let result = parseResult(content)
-  if (!result.html) result = parseResult(reasoning)
+  if (!result.html) result = parseResult(content)
   if (!result.html) throw new Error('模型未能生成有效内容，请重试')
   yield { type: 'done', title: result.title, html: result.html }
 }

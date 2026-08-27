@@ -5,6 +5,7 @@ import { fileURLToPath } from 'node:url'
 import usersRouter from './routes/users.js'
 import appsRouter from './routes/apps.js'
 import generateRouter from './routes/generate.js'
+import teamRouter from './routes/team.js'
 import adminRouter from './routes/admin.js'
 import { rateLimit } from './middleware/rateLimit.js'
 import db from './db.js'
@@ -29,6 +30,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }))
 app.use('/api/users', usersRouter)
 app.use('/api/apps', appsRouter)
 app.use('/api/generate', rateLimit({ windowMs: 60000, max: 10 }), generateRouter)
+app.use('/api/team', rateLimit({ windowMs: 60000, max: 10 }), teamRouter)
 app.use('/api/admin', adminRouter)
 
 // 应用独立访问 URL：直接返回生成应用的完整 HTML（统一入口，/p/:id 即应用的链接）
