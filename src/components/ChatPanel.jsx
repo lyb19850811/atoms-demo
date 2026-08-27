@@ -1,11 +1,13 @@
 import { useRef, useState, useEffect } from 'react'
 import FeatureMenu from './FeatureMenu.jsx'
 import { getAgent } from '../data/agents.js'
+import { getTheme, toggleTheme } from '../theme.js'
 
 export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend, onStop, teamMode, onToggleTeamMode, plan, steps = [], building, onConfirmPlan }) {
   const [input, setInput] = useState('')
   const [thinkingOpen, setThinkingOpen] = useState(true)
   const [planDraft, setPlanDraft] = useState('')
+  const [theme, setThemeState] = useState(getTheme())
   const listRef = useRef(null)
   const taRef = useRef(null)
   const thinkingRef = useRef(null)
@@ -136,7 +138,9 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
         <div className="row">
           <div className="row-left">
             <FeatureMenu teamMode={teamMode} onToggleTeamMode={onToggleTeamMode} />
-            <button className="btn btn-sm btn-ghost" title="主题（即将上线）">🎨 主题 ▾</button>
+            <button className="btn btn-sm btn-ghost" onClick={() => setThemeState(toggleTheme())} title="切换明暗主题">
+              {theme === 'dark' ? '☀️ 亮色' : '🌙 暗色'}
+            </button>
           </div>
           {generating ? (
             <button className="btn btn-stop" onClick={onStop}>⏹ 停止</button>
