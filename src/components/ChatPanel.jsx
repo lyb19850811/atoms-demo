@@ -1,13 +1,26 @@
 import { useRef, useState, useEffect } from 'react'
 
+const THINKING_STEPS = ['理解需求', '设计界面', '编写代码', '构建应用']
+
 export default function ChatPanel({ messages, generating, samples, onSend }) {
   const [input, setInput] = useState('')
+  const [step, setStep] = useState(0)
   const listRef = useRef(null)
   const taRef = useRef(null)
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
   }, [messages, generating])
+
+  // 生成期间循环展示「思考过程」各阶段
+  useEffect(() => {
+    if (!generating) {
+      setStep(0)
+      return
+    }
+    const t = setInterval(() => setStep((s) => (s + 1) % THINKING_STEPS.length), 1800)
+    return () => clearInterval(t)
+  }, [generating])
 
   function submit() {
     const v = input.trim()
@@ -47,7 +60,7 @@ export default function ChatPanel({ messages, generating, samples, onSend }) {
         ))}
         {generating && (
           <div className="typing">
-            <span>正在生成</span>
+            <span>思考过程：{THINKING_STEPS[step]}</span>
             <span className="dots"><span /><span /><span /></span>
           </div>
         )}
@@ -65,7 +78,7 @@ export default function ChatPanel({ messages, generating, samples, onSend }) {
         <div className="row">
           <span className="tip">Enter 发送 · Shift+Enter 换行</span>
           <button className="btn btn-primary" onClick={submit} disabled={generating || !input.trim()}>
-            {generating ? '生成中…' : '生成'}
+            {generating ? '思考中…' : '生成'}
           </button>
         </div>
       </div>
