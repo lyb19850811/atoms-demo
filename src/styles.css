@@ -545,6 +545,19 @@ button {
   font-size: 17px;
 }
 
+.badge {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 500;
+  color: #6ee7b7;
+  background: rgba(110, 231, 183, 0.12);
+  border: 1px solid rgba(110, 231, 183, 0.35);
+  border-radius: 999px;
+  vertical-align: middle;
+}
+
 .app-card .desc {
   color: var(--text-dim);
   font-size: 13px;

@@ -44,7 +44,7 @@ export default function Apps() {
           <div className="apps-grid">
             {apps.map((a) => (
               <div className="app-card" key={a.id}>
-                <h3>{a.title}</h3>
+                <h3>{a.title}{a.published ? <span className="badge">已发布</span> : null}</h3>
                 <p className="desc">{a.prompt}</p>
                 <div className="meta">更新于 {relTime(a.updated_at)}</div>
                 <div className="actions">

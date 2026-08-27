@@ -25,7 +25,8 @@ CREATE TABLE IF NOT EXISTS apps (
   prompt     TEXT NOT NULL,
   html       TEXT NOT NULL,
   created_at INTEGER NOT NULL,
-  updated_at INTEGER NOT NULL
+  updated_at INTEGER NOT NULL,
+  published  INTEGER NOT NULL DEFAULT 0
 );
 CREATE INDEX IF NOT EXISTS idx_apps_user ON apps(user_id);
 
@@ -38,5 +39,11 @@ CREATE TABLE IF NOT EXISTS messages (
 );
 CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(app_id);
 `)
+
+// 迁移：为旧库的 apps 表补充 published 列
+const appCols = db.prepare('PRAGMA table_info(apps)').all()
+if (!appCols.some((c) => c.name === 'published')) {
+  db.exec('ALTER TABLE apps ADD COLUMN published INTEGER NOT NULL DEFAULT 0')
+}
 
 export default db

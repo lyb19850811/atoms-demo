@@ -8,7 +8,7 @@ router.get('/', (req, res) => {
   const { userId } = req.query
   if (!userId) return res.status(400).json({ error: '缺少 userId' })
   const rows = db
-    .prepare('SELECT id, title, prompt, created_at, updated_at FROM apps WHERE user_id = ? ORDER BY updated_at DESC')
+    .prepare('SELECT id, title, prompt, published, created_at, updated_at FROM apps WHERE user_id = ? ORDER BY updated_at DESC')
     .all(userId)
   res.json(rows)
 })
@@ -30,6 +30,15 @@ router.get('/:id/html', (req, res) => {
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.send(app.html)
+})
+
+// 发布 / 取消发布：切换应用在 /p/:id 的独立访问状态
+router.post('/:id/publish', (req, res) => {
+  const app = db.prepare('SELECT id FROM apps WHERE id = ?').get(req.params.id)
+  if (!app) return res.status(404).json({ error: '应用不存在' })
+  const published = req.body?.published !== false ? 1 : 0
+  db.prepare('UPDATE apps SET published = ? WHERE id = ?').run(published, app.id)
+  res.json({ published: published === 1, url: `/p/${app.id}` })
 })
 
 export default router

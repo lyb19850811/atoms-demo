@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, shareUrl } from '../api.js'
+import { api, shareUrl, publishUrl } from '../api.js'
 import { getCurrentUser } from '../user.js'
 import ChatPanel from '../components/ChatPanel.jsx'
 import PreviewFrame from '../components/PreviewFrame.jsx'
@@ -19,6 +19,7 @@ export default function Workspace() {
   const [error, setError] = useState('')
   const [device, setDevice] = useState('desktop')
   const [toast, setToast] = useState('')
+  const [published, setPublished] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -31,6 +32,7 @@ export default function Workspace() {
         .then((a) => {
           setApp(a)
           setMessages(a.messages || [])
+          setPublished(!!a.published)
         })
         .catch((e) => setError(e.message))
     }
@@ -49,6 +51,7 @@ export default function Workspace() {
     try {
       const res = await api.generate({ appId: app?.id, prompt, userId: user?.id })
       setApp(res)
+      if (!app?.id) setPublished(false)
       setMessages((m) => [...m, { role: 'assistant', content: `已生成「${res.title}」，可在右侧预览。继续描述你的修改想法即可迭代。` }])
     } catch (e) {
       setError(e.message)
@@ -58,15 +61,40 @@ export default function Workspace() {
     }
   }
 
-  async function copyShare() {
+  function copyText(text, prefix) {
+    navigator.clipboard.writeText(text).then(() => flashToast(prefix + text)).catch(() => flashToast(text))
+  }
+
+  function copyShare() {
     if (!app?.id) return
-    const url = shareUrl(app.id)
+    copyText(shareUrl(app.id), '分享链接已复制：')
+  }
+
+  async function publish() {
+    if (!app?.id) return
     try {
-      await navigator.clipboard.writeText(url)
-      flashToast('分享链接已复制：' + url)
-    } catch {
-      flashToast(url)
+      await api.publish(app.id, true)
+      setPublished(true)
+      copyText(publishUrl(app.id), '已发布，链接已复制：')
+    } catch (e) {
+      setError(e.message)
     }
+  }
+
+  async function unpublish() {
+    if (!app?.id) return
+    try {
+      await api.publish(app.id, false)
+      setPublished(false)
+      flashToast('已取消发布')
+    } catch (e) {
+      setError(e.message)
+    }
+  }
+
+  function copyPublishLink() {
+    if (!app?.id) return
+    copyText(publishUrl(app.id), '发布链接已复制：')
   }
 
   return (
@@ -83,9 +111,15 @@ export default function Workspace() {
           <button className={device === 'mobile' ? 'active' : ''} onClick={() => setDevice('mobile')}>移动</button>
         </div>
         <button className="btn btn-sm btn-ghost" onClick={() => nav('/apps')}>我的应用</button>
-        <button className="btn btn-sm btn-primary" onClick={copyShare} disabled={!app?.id}>
-          {app?.id ? '🔗 分享' : '🔗 分享'}
-        </button>
+        <button className="btn btn-sm btn-ghost" onClick={copyShare} disabled={!app?.id}>🔗 分享</button>
+        {published ? (
+          <>
+            <button className="btn btn-sm btn-ghost" onClick={unpublish}>取消发布</button>
+            <button className="btn btn-sm btn-primary" onClick={copyPublishLink}>✅ 已发布</button>
+          </>
+        ) : (
+          <button className="btn btn-sm btn-primary" onClick={publish} disabled={!app?.id}>🚀 发布</button>
+        )}
       </header>
 
       <div className="ws-body">

@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import usersRouter from './routes/users.js'
 import appsRouter from './routes/apps.js'
 import generateRouter from './routes/generate.js'
+import db from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
@@ -27,6 +28,15 @@ app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }))
 app.use('/api/users', usersRouter)
 app.use('/api/apps', appsRouter)
 app.use('/api/generate', generateRouter)
+
+// 已发布应用：独立访问 URL，直接返回生成应用的完整 HTML（像一个真实部署的产品页）
+app.get('/p/:id', (req, res) => {
+  const app = db.prepare('SELECT html, published FROM apps WHERE id = ?').get(req.params.id)
+  if (!app || !app.published) return res.status(404).send('应用不存在或未发布')
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('X-Content-Type-Options', 'nosniff')
+  res.send(app.html)
+})
 
 // 生产环境：托管前端构建产物（单端口，无 CORS）
 const distDir = path.join(__dirname, '..', 'dist')

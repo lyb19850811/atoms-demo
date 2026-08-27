@@ -27,12 +27,18 @@ export const api = {
     }
   },
   listApps: (userId) => request(`/api/apps?userId=${encodeURIComponent(userId)}`),
-  getApp: (id) => request(`/api/apps/${id}`)
+  getApp: (id) => request(`/api/apps/${id}`),
+  publish: (id, published) => request(`/api/apps/${id}/publish`, { method: 'POST', body: { published } })
 }
 
 // 分享链接：HashRouter 下用 #/app/:id，任何环境（IP:端口）都可用
 export function shareUrl(id) {
   return `${location.origin}/#/app/${id}`
+}
+
+// 发布链接：独立访问地址，直接加载生成应用
+export function publishUrl(id) {
+  return `${location.origin}/p/${id}`
 }
 
 // 生成应用的原始 HTML 地址（供 iframe 直接加载）
