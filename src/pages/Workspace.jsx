@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, publishUrl } from '../api.js'
 import { getCurrentUser, isOnboarded, markOnboarded } from '../user.js'
@@ -33,6 +33,7 @@ export default function Workspace() {
   const [phase, setPhase] = useState(null) // 'thinking' | 'writing' | null
   const [showGuide, setShowGuide] = useState(false)
   const [showCode, setShowCode] = useState(false)
+  const abortRef = useRef(null)
 
   useEffect(() => {
     if (!userId) {
@@ -70,6 +71,8 @@ export default function Workspace() {
     setThinkingText('')
     setMessages((m) => [...m, { role: 'user', content: prompt }])
     let thinkingAccum = ''
+    const controller = new AbortController()
+    abortRef.current = controller
     try {
       await api.generateStream(
         { appId: app?.id, prompt, userId: user?.id, agent },
@@ -92,16 +95,26 @@ export default function Workspace() {
             setError(d.message)
             setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${d.message}` }])
           }
-        }
+        },
+        controller.signal
       )
     } catch (e) {
-      setError(e.message)
-      setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${e.message}` }])
+      if (e.name === 'AbortError') {
+        setMessages((m) => [...m, { role: 'assistant', content: '⏹ 已停止生成' }])
+      } else {
+        setError(e.message)
+        setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${e.message}` }])
+      }
     } finally {
       setGenerating(false)
       setPhase(null)
       setThinkingText('')
+      abortRef.current = null
     }
+  }
+
+  function stopGeneration() {
+    abortRef.current?.abort()
   }
 
   async function publish() {
@@ -167,6 +180,7 @@ export default function Workspace() {
           phase={phase}
           samples={SAMPLES}
           onSend={handleSend}
+          onStop={stopGeneration}
         />
         <PreviewFrame html={app?.html || ''} device={device} error={error} />
       </div>

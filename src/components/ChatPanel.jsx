@@ -1,12 +1,13 @@
 import { useRef, useState, useEffect } from 'react'
 import AgentBar from './AgentBar.jsx'
 import FeatureMenu from './FeatureMenu.jsx'
-import { getAgent } from '../data/agents.js'
+import { getAgent, AGENTS } from '../data/agents.js'
 
-export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend }) {
+export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend, onStop }) {
   const [input, setInput] = useState('')
   const [thinkingOpen, setThinkingOpen] = useState(true)
   const [activeAgent, setActiveAgent] = useState('engineer')
+  const [agentMenu, setAgentMenu] = useState(false)
   const activeInfo = getAgent(activeAgent)
   const listRef = useRef(null)
   const taRef = useRef(null)
@@ -33,6 +34,19 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
       e.preventDefault()
       submit()
     }
+  }
+
+  function handleChange(e) {
+    const v = e.target.value
+    setInput(v)
+    setAgentMenu(v.endsWith('@'))
+  }
+
+  function selectAgent(id) {
+    setActiveAgent(id)
+    setInput((prev) => prev.replace(/@$/, ''))
+    setAgentMenu(false)
+    taRef.current?.focus()
   }
 
   return (
@@ -99,19 +113,34 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
         <textarea
           ref={taRef}
           value={input}
-          onChange={(e) => setInput(e.target.value)}
+          onChange={handleChange}
           onKeyDown={onKeyDown}
           placeholder={messages.length > 0 ? `继续描述，@${activeInfo.name} 会接手…` : `请@${activeInfo.name}，例如：做一个番茄钟`}
           disabled={generating}
         />
+        {agentMenu && (
+          <div className="agent-mention-popover">
+            {AGENTS.map((a) => (
+              <div key={a.id} className="agent-mention-item" onClick={() => selectAgent(a.id)}>
+                <span className="agent-mention-emoji" style={{ background: a.color }}>{a.emoji}</span>
+                <span className="agent-mention-name">{a.name}</span>
+                <span className="agent-mention-role">{a.role}</span>
+              </div>
+            ))}
+          </div>
+        )}
         <div className="row">
           <div className="row-left">
             <FeatureMenu />
             <button className="btn btn-sm btn-ghost" title="主题（即将上线）">🎨 主题 ▾</button>
           </div>
-          <button className="btn btn-primary" onClick={submit} disabled={generating || !input.trim()}>
-            {generating ? (phase === 'thinking' ? '思考中…' : '生成中…') : `以${activeInfo.name}构建`}
-          </button>
+          {generating ? (
+            <button className="btn btn-stop" onClick={onStop}>⏹ 停止</button>
+          ) : (
+            <button className="btn btn-primary" onClick={submit} disabled={!input.trim()}>
+              以{activeInfo.name}构建
+            </button>
+          )}
         </div>
       </div>
     </div>

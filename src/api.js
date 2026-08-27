@@ -11,11 +11,12 @@ async function request(path, options = {}) {
 }
 
 // 流式请求：解析后端 SSE（event: xxx / data: {...}），按事件名分发到 handlers
-async function streamRequest(path, payload, handlers) {
+async function streamRequest(path, payload, handlers, signal) {
   const res = await fetch(path, {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify(payload)
+    body: JSON.stringify(payload),
+    signal
   })
   if (!res.ok) {
     const data = await res.json().catch(() => ({}))
@@ -52,7 +53,7 @@ async function streamRequest(path, payload, handlers) {
 
 export const api = {
   register: (nickname) => request('/api/users', { method: 'POST', body: { nickname } }),
-  generateStream: (payload, handlers) => streamRequest('/api/generate', payload, handlers),
+  generateStream: (payload, handlers, signal) => streamRequest('/api/generate', payload, handlers, signal),
   listApps: (userId) => request(`/api/apps?userId=${encodeURIComponent(userId)}`),
   getApp: (id) => request(`/api/apps/${id}`),
   publish: (id, published) => request(`/api/apps/${id}/publish`, { method: 'POST', body: { published } }),
