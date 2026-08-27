@@ -1,10 +1,8 @@
 import { useState } from 'react'
 
-// 功能菜单（仿 Atoms：团队模式 / 附件 / 连接器 / 视频 / 深度研究 / 竞赛模式）
-// 目前为 UI 占位：开关仅切换本地状态，后续逐个接入真实功能
-export default function FeatureMenu() {
+// 功能菜单（团队模式 / 附件 / 连接器 / 视频 / 深度研究 / 竞赛模式）
+export default function FeatureMenu({ teamMode, onToggleTeamMode }) {
   const [open, setOpen] = useState(false)
-  const [teamMode, setTeamMode] = useState(false)
   const [deepResearch, setDeepResearch] = useState(false)
 
   return (
@@ -14,7 +12,7 @@ export default function FeatureMenu() {
       </button>
       {open && (
         <div className="feature-popover">
-          <div className="feature-item" onClick={() => setTeamMode((v) => !v)}>
+          <div className="feature-item" onClick={() => onToggleTeamMode?.()}>
             <span>👥 团队模式</span>
             <span className={`toggle${teamMode ? ' on' : ''}`}><span className="knob" /></span>
           </div>

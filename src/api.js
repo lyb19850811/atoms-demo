@@ -54,6 +54,8 @@ async function streamRequest(path, payload, handlers, signal) {
 export const api = {
   register: (nickname) => request('/api/users', { method: 'POST', body: { nickname } }),
   generateStream: (payload, handlers, signal) => streamRequest('/api/generate', payload, handlers, signal),
+  teamPlan: (payload, handlers, signal) => streamRequest('/api/team/plan', payload, handlers, signal),
+  teamBuild: (payload, handlers, signal) => streamRequest('/api/team/build', payload, handlers, signal),
   listApps: (userId) => request(`/api/apps?userId=${encodeURIComponent(userId)}`),
   getApp: (id) => request(`/api/apps/${id}`),
   publish: (id, published) => request(`/api/apps/${id}/publish`, { method: 'POST', body: { published } }),

@@ -10,6 +10,7 @@ import PublishDialog from '../components/PublishDialog.jsx'
 import UserMenu from '../components/UserMenu.jsx'
 import FirstRunGuide from '../components/FirstRunGuide.jsx'
 import ArtifactViewer from '../components/ArtifactViewer.jsx'
+import ProjectViewer from '../components/ProjectViewer.jsx'
 
 const SAMPLES = ['做一个番茄钟', '做一个待办清单', '做一个 BMI 计算器', '做一个成语接龙游戏']
 
@@ -34,6 +35,13 @@ export default function Workspace() {
   const [showGuide, setShowGuide] = useState(false)
   const [showCode, setShowCode] = useState(false)
   const abortRef = useRef(null)
+  const [teamMode, setTeamMode] = useState(false)
+  const [plan, setPlan] = useState(null) // {id, title, plan}
+  const [steps, setSteps] = useState([]) // 团队流水线步骤
+  const [building, setBuilding] = useState(false)
+  const [files, setFiles] = useState([]) // 团队模式项目文件
+  const [entry, setEntry] = useState('')
+  const [selectedFile, setSelectedFile] = useState('')
 
   useEffect(() => {
     if (!userId) {
@@ -64,6 +72,10 @@ export default function Workspace() {
   }
 
   async function handleSend(prompt, agent) {
+    if (teamMode) {
+      handleTeamSend(prompt)
+      return
+    }
     if (generating) return
     setError('')
     setGenerating(true)
@@ -115,6 +127,86 @@ export default function Workspace() {
 
   function stopGeneration() {
     abortRef.current?.abort()
+  }
+
+  async function handleTeamSend(prompt) {
+    if (generating || building) return
+    setError('')
+    setGenerating(true)
+    setPhase('thinking')
+    setThinkingText('')
+    setMessages((m) => [...m, { role: 'user', content: prompt }])
+    setPlan(null)
+    setSteps([])
+    setFiles([])
+    setEntry('')
+    const controller = new AbortController()
+    abortRef.current = controller
+    try {
+      await api.teamPlan(
+        { prompt, userId: user?.id },
+        {
+          thinking: (d) => setThinkingText((t) => t + d.text),
+          done_plan: (d) => {
+            setPlan(d)
+            setMessages((m) => [...m, { role: 'assistant', content: '团队计划已生成，请确认后开始开发。' }])
+          },
+          error: (d) => {
+            setError(d.message)
+            setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${d.message}` }])
+          }
+        },
+        controller.signal
+      )
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        setMessages((m) => [...m, { role: 'assistant', content: '⏹ 已停止' }])
+      } else {
+        setError(e.message)
+        setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${e.message}` }])
+      }
+    } finally {
+      setGenerating(false)
+      setPhase(null)
+      setThinkingText('')
+      abortRef.current = null
+    }
+  }
+
+  async function confirmBuild() {
+    if (!plan?.id || building) return
+    setBuilding(true)
+    setSteps([])
+    setFiles([])
+    setError('')
+    const controller = new AbortController()
+    abortRef.current = controller
+    try {
+      await api.teamBuild(
+        { appId: plan.id },
+        {
+          step_start: (d) =>
+            setSteps((s) => [...s, { seq: d.seq, agentId: d.agentId, agentName: d.agentName, task: d.task, status: 'running' }]),
+          step_done: (d) => setSteps((s) => s.map((x) => (x.seq === d.seq ? { ...x, status: 'done' } : x))),
+          done: (d) => {
+            setFiles(d.files || [])
+            setEntry(d.entry || '')
+            setPlan(null)
+            setMessages((m) => [...m, { role: 'assistant', content: `团队已完成「${d.title}」，可在右侧浏览项目文件与预览。` }])
+          },
+          error: (d) => {
+            setError(d.message)
+            setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${d.message}` }])
+          }
+        },
+        controller.signal
+      )
+    } catch (e) {
+      if (e.name !== 'AbortError') setError(e.message)
+    } finally {
+      setBuilding(false)
+      abortRef.current = null
+    }
   }
 
   async function publish() {
@@ -173,14 +265,24 @@ export default function Workspace() {
       <div className="ws-body">
         <ChatPanel
           messages={messages}
-          generating={generating}
+          generating={generating || building}
           thinkingText={thinkingText}
           phase={phase}
           samples={SAMPLES}
           onSend={handleSend}
           onStop={stopGeneration}
+          teamMode={teamMode}
+          onToggleTeamMode={() => setTeamMode((v) => !v)}
+          plan={plan}
+          steps={steps}
+          building={building}
+          onConfirmPlan={confirmBuild}
         />
-        <PreviewFrame html={app?.html || ''} device={device} error={error} />
+        {teamMode && files.length > 0 ? (
+          <ProjectViewer files={files} entry={entry} selectedPath={selectedFile} onSelect={setSelectedFile} />
+        ) : (
+          <PreviewFrame html={app?.html || ''} device={device} error={error} />
+        )}
       </div>
       {toast && <div className="toast">{toast}</div>}
       {showGuide && <FirstRunGuide onClose={closeGuide} />}

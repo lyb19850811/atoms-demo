@@ -3,7 +3,7 @@ import AgentBar from './AgentBar.jsx'
 import FeatureMenu from './FeatureMenu.jsx'
 import { getAgent, AGENTS } from '../data/agents.js'
 
-export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend, onStop }) {
+export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend, onStop, teamMode, onToggleTeamMode, plan, steps = [], building, onConfirmPlan }) {
   const [input, setInput] = useState('')
   const [thinkingOpen, setThinkingOpen] = useState(true)
   const [activeAgent, setActiveAgent] = useState('engineer')
@@ -102,6 +102,29 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
             <span className="dots"><span /><span /><span /></span>
           </div>
         )}
+
+        {plan && !building && (
+          <div className="plan-card">
+            <div className="plan-card-head">📋 {plan.title || '团队开发计划'}</div>
+            <div className="plan-card-body">{plan.plan}</div>
+            <div className="plan-card-actions">
+              <button className="btn btn-primary" onClick={onConfirmPlan}>✅ 确认开发</button>
+            </div>
+          </div>
+        )}
+
+        {steps.length > 0 && (
+          <div className="steps-card">
+            <div className="steps-card-head">🤝 团队协作</div>
+            {steps.map((s) => (
+              <div key={s.seq} className={`step-item ${s.status}`}>
+                <span className="step-agent">{getAgent(s.agentId).emoji} {s.agentName}</span>
+                <span className="step-task">{s.task}</span>
+                <span className="step-status">{s.status === 'done' ? '✓' : '…'}</span>
+              </div>
+            ))}
+          </div>
+        )}
       </div>
 
       <div className="chat-input">
@@ -131,7 +154,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
         )}
         <div className="row">
           <div className="row-left">
-            <FeatureMenu />
+            <FeatureMenu teamMode={teamMode} onToggleTeamMode={onToggleTeamMode} />
             <button className="btn btn-sm btn-ghost" title="主题（即将上线）">🎨 主题 ▾</button>
           </div>
           {generating ? (
