@@ -16,6 +16,7 @@ export default function UserMenu() {
     <div className="user-menu">
       <div className="user-avatar">{user.nickname?.charAt(0) || '?'}</div>
       <span className="user-name" title={user.nickname}>{user.nickname}</span>
+      <button className="btn btn-sm btn-ghost" onClick={() => nav('/admin')}>管理</button>
       <button className="btn btn-sm btn-ghost logout-btn" onClick={logout}>退出</button>
     </div>
   )

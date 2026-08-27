@@ -54,7 +54,11 @@ export const api = {
   generateStream: (payload, handlers) => streamRequest('/api/generate', payload, handlers),
   listApps: (userId) => request(`/api/apps?userId=${encodeURIComponent(userId)}`),
   getApp: (id) => request(`/api/apps/${id}`),
-  publish: (id, published) => request(`/api/apps/${id}/publish`, { method: 'POST', body: { published } })
+  publish: (id, published) => request(`/api/apps/${id}/publish`, { method: 'POST', body: { published } }),
+  adminUsers: () => request('/api/admin/users'),
+  adminApps: () => request('/api/admin/apps'),
+  deleteUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
+  deleteApp: (id) => request(`/api/admin/apps/${id}`, { method: 'DELETE' })
 }
 
 // 分享链接：HashRouter 下用 #/app/:id，任何环境（IP:端口）都可用

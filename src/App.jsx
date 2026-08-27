@@ -4,6 +4,7 @@ import Register from './pages/Register.jsx'
 import Workspace from './pages/Workspace.jsx'
 import Apps from './pages/Apps.jsx'
 import AppView from './pages/AppView.jsx'
+import Admin from './pages/Admin.jsx'
 
 export default function App() {
   return (
@@ -13,6 +14,7 @@ export default function App() {
       <Route path="/workspace" element={<Workspace />} />
       <Route path="/apps" element={<Apps />} />
       <Route path="/app/:id" element={<AppView />} />
+      <Route path="/admin" element={<Admin />} />
       <Route path="*" element={<Navigate to="/" replace />} />
     </Routes>
   )

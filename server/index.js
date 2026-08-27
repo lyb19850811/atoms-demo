@@ -6,6 +6,7 @@ import { fileURLToPath } from 'node:url'
 import usersRouter from './routes/users.js'
 import appsRouter from './routes/apps.js'
 import generateRouter from './routes/generate.js'
+import adminRouter from './routes/admin.js'
 import db from './db.js'
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
@@ -28,6 +29,7 @@ app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }))
 app.use('/api/users', usersRouter)
 app.use('/api/apps', appsRouter)
 app.use('/api/generate', generateRouter)
+app.use('/api/admin', adminRouter)
 
 // 应用独立访问 URL：直接返回生成应用的完整 HTML（统一入口，/p/:id 即应用的链接）
 app.get('/p/:id', (req, res) => {
