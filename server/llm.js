@@ -155,8 +155,17 @@ export function parseResult(text) {
   return { title: '我的应用', html }
 }
 
+// 冗长推理异常：推理超过阈值仍未产出内容（触发非推理模型回退）
+class VerboseReasoningError extends Error {
+  constructor() {
+    super('verbose reasoning')
+    this.name = 'VerboseReasoningError'
+  }
+}
+
 // 底层流式调用：逐块产出 thinking/content，结束产出 done { content, reasoning }
-async function* rawStream(messages) {
+// opts.model：模型名；opts.maxReasoning：推理长度阈值，超过且无内容则抛 VerboseReasoningError
+async function* rawStream(messages, { model = MODEL, maxReasoning = 3000 } = {}) {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) throw new Error('服务端未配置 DEEPSEEK_API_KEY')
 
@@ -168,7 +177,7 @@ async function* rawStream(messages) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json', Authorization: `Bearer ${apiKey}` },
       body: JSON.stringify({
-        model: MODEL,
+        model,
         messages,
         stream: true,
         temperature: 0,
@@ -178,13 +187,13 @@ async function* rawStream(messages) {
       signal: controller.signal
     })
   } catch (e) {
+    clearTimeout(timer)
     if (e.name === 'AbortError') throw new Error('生成超时，请重试')
     throw new Error(`无法连接模型服务：${e.message}`)
-  } finally {
-    clearTimeout(timer)
   }
 
   if (!res.ok) {
+    clearTimeout(timer)
     const data = await res.json().catch(() => ({}))
     const msg = data?.error?.message || `LLM 请求失败(${res.status})`
     if (res.status === 402) throw new Error('API 余额不足，请检查 DeepSeek 账户余额')
@@ -198,31 +207,48 @@ async function* rawStream(messages) {
   let reasoning = ''
   let content = ''
 
-  while (true) {
-    const { done, value } = await reader.read()
-    if (done) break
-    buffer += decoder.decode(value, { stream: true })
-    const lines = buffer.split('\n')
-    buffer = lines.pop()
-    for (const line of lines) {
-      const t = line.trim()
-      if (!t.startsWith('data:')) continue
-      const d = t.slice(5).trim()
-      if (d === '[DONE]') continue
-      try {
-        const obj = JSON.parse(d)
-        const delta = obj.choices?.[0]?.delta || {}
-        if (delta.reasoning_content) {
-          reasoning += delta.reasoning_content
-          yield { type: 'thinking', text: delta.reasoning_content }
+  try {
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const lines = buffer.split('\n')
+      buffer = lines.pop()
+      for (const line of lines) {
+        const t = line.trim()
+        if (!t.startsWith('data:')) continue
+        const d = t.slice(5).trim()
+        if (d === '[DONE]') continue
+        try {
+          const obj = JSON.parse(d)
+          const delta = obj.choices?.[0]?.delta || {}
+          if (delta.reasoning_content) {
+            reasoning += delta.reasoning_content
+            if (reasoning.length > maxReasoning && content.length === 0) {
+              throw new VerboseReasoningError()
+            }
+            yield { type: 'thinking', text: delta.reasoning_content }
+          }
+          if (delta.content) {
+            content += delta.content
+            yield { type: 'content', text: delta.content }
+          }
+        } catch (e) {
+          if (e instanceof VerboseReasoningError) throw e
+          /* 忽略无法解析的行 */
         }
-        if (delta.content) {
-          content += delta.content
-          yield { type: 'content', text: delta.content }
-        }
-      } catch {
-        /* 忽略无法解析的行 */
       }
+    }
+  } catch (e) {
+    if (e instanceof VerboseReasoningError) throw e
+    if (e.name === 'AbortError') throw new Error('生成超时，请重试')
+    throw e
+  } finally {
+    clearTimeout(timer)
+    try {
+      controller.abort()
+    } catch {
+      /* ignore */
     }
   }
   yield { type: 'done', content, reasoning }
@@ -231,7 +257,15 @@ async function* rawStream(messages) {
 // 通用流式补全：给定 system + user，产出 thinking/content/done{content}
 export async function* streamCompletion({ system, user }) {
   const messages = [{ role: 'system', content: system + THINKING_HINT }, { role: 'user', content: user }]
-  yield* rawStream(messages)
+  try {
+    yield* rawStream(messages)
+  } catch (e) {
+    if (e instanceof VerboseReasoningError) {
+      yield* rawStream(messages, { model: 'deepseek-chat', maxReasoning: Infinity })
+    } else {
+      throw e
+    }
+  }
 }
 
 // 单文件模式：流式生成应用
@@ -240,17 +274,37 @@ export async function* streamGenerate({ prompt, currentHtml, agent }) {
   const agentDef = getAgentInfo(agent)
   const messages = buildSingleMessages(agentDef, prompt, currentHtml)
   let content = ''
-  for await (const c of rawStream(messages)) {
-    if (c.type === 'thinking') yield { type: 'thinking', text: c.text }
-    else if (c.type === 'content') {
-      content += c.text
-      yield { type: 'writing', text: c.text }
-    } else if (c.type === 'done') {
-      content = c.content
+  let reasoning = ''
+  try {
+    for await (const c of rawStream(messages)) {
+      if (c.type === 'thinking') {
+        reasoning += c.text
+        yield { type: 'thinking', text: c.text }
+      } else if (c.type === 'content') {
+        content += c.text
+        yield { type: 'writing', text: c.text }
+      } else if (c.type === 'done') {
+        content = c.content
+        reasoning = c.reasoning
+      }
+    }
+  } catch (e) {
+    if (e instanceof VerboseReasoningError) {
+      // 回退到非推理模型（稳定）
+      for await (const c of rawStream(messages, { model: 'deepseek-chat', maxReasoning: Infinity })) {
+        if (c.type === 'content') {
+          content += c.text
+          yield { type: 'writing', text: c.text }
+        } else if (c.type === 'done') {
+          content = c.content
+        }
+      }
+    } else {
+      throw e
     }
   }
   let result = parseResult(content)
-  if (!result.html) result = parseResult(content)
+  if (!result.html) result = parseResult(reasoning)
   if (!result.html) throw new Error('模型未能生成有效内容，请重试')
   yield { type: 'done', title: result.title, html: result.html }
 }
