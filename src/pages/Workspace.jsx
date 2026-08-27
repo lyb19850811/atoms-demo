@@ -81,14 +81,56 @@ export default function Workspace() {
     setPhase('thinking')
     setThinkingText('')
     setMessages((m) => [...m, { role: 'user', content: prompt }])
+    setPlan(null)
     setFiles([])
     setEntry('')
+    const controller = new AbortController()
+    abortRef.current = controller
+    try {
+      await api.plan(
+        { prompt },
+        {
+          thinking: (d) => setThinkingText((t) => t + d.text),
+          done_plan: (d) => {
+            setPlan({ mode: 'single', title: d.title, plan: d.plan, agent, prompt, appId: app?.id })
+            setMessages((m) => [...m, { role: 'assistant', content: '开发计划已生成，请确认或编辑后开始开发。' }])
+          },
+          error: (d) => {
+            setError(d.message)
+            setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${d.message}` }])
+          }
+        },
+        controller.signal
+      )
+    } catch (e) {
+      if (e.name === 'AbortError') {
+        setMessages((m) => [...m, { role: 'assistant', content: '⏹ 已停止' }])
+      } else {
+        setError(e.message)
+        setMessages((m) => [...m, { role: 'assistant', content: `⚠️ ${e.message}` }])
+      }
+    } finally {
+      setGenerating(false)
+      setPhase(null)
+      setThinkingText('')
+      abortRef.current = null
+    }
+  }
+
+  // 单文件模式：确认计划后执行生成
+  async function confirmSingle(editedPlan) {
+    if (!plan || generating) return
+    const { prompt, agent, appId } = plan
+    setError('')
+    setGenerating(true)
+    setPhase('thinking')
+    setThinkingText('')
     let thinkingAccum = ''
     const controller = new AbortController()
     abortRef.current = controller
     try {
       await api.generateStream(
-        { appId: app?.id, prompt, userId: user?.id, agent },
+        { appId, prompt, userId: user?.id, agent, plan: editedPlan },
         {
           thinking: (d) => {
             thinkingAccum += d.text
@@ -97,8 +139,9 @@ export default function Workspace() {
           writing: () => setPhase('writing'),
           done: (d) => {
             setApp(d)
-            if (!app?.id) setPublished(false)
+            if (!appId) setPublished(false)
             const agentName = getAgent(agent)?.name || '工程师'
+            setPlan(null)
             setMessages((m) => [
               ...m,
               { role: 'assistant', content: `已由 ${agentName} 生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。`, thinking: thinkingAccum }
@@ -124,6 +167,12 @@ export default function Workspace() {
       setThinkingText('')
       abortRef.current = null
     }
+  }
+
+  // 统一确认入口：单文件/团队分别分发
+  function onConfirmPlan(editedPlan) {
+    if (plan?.mode === 'team') confirmBuild(editedPlan)
+    else confirmSingle(editedPlan)
   }
 
   function stopGeneration() {
@@ -280,7 +329,7 @@ export default function Workspace() {
           plan={plan}
           steps={steps}
           building={building}
-          onConfirmPlan={confirmBuild}
+          onConfirmPlan={onConfirmPlan}
         />
         {files.length > 0 ? (
           <ProjectViewer files={files} entry={entry} />

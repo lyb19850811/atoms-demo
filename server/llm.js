@@ -107,7 +107,7 @@ export function getTeamAgent(agent) {
   return TEAM_AGENTS[agent] || TEAM_AGENTS.engineer
 }
 
-function buildSingleMessages(agentDef, prompt, currentHtml) {
+function buildSingleMessages(agentDef, prompt, currentHtml, plan) {
   const messages = [{ role: 'system', content: agentDef.system + THINKING_HINT }]
   if (currentHtml) {
     messages.push({
@@ -115,7 +115,9 @@ function buildSingleMessages(agentDef, prompt, currentHtml) {
       content: `这是我当前内容的完整代码：\n\`\`\`html\n${currentHtml}\n\`\`\`\n\n用户的新需求：${prompt}\n请基于上面的代码做最小必要修改，输出修改后的完整新代码（JSON 格式）。`
     })
   } else {
-    messages.push({ role: 'user', content: `任务：${prompt}` })
+    let user = `任务：${prompt}`
+    if (plan) user += `\n\n已确认的开发计划：\n${plan}\n请严格按此计划实现。`
+    messages.push({ role: 'user', content: user })
   }
   return messages
 }
@@ -278,11 +280,26 @@ export async function* streamCompletion({ system, user }) {
   }
 }
 
+// 规划智能体：为单文件应用生成一份简洁开发计划
+export async function* streamPlan({ prompt }) {
+  const system = `你是 Mini Atoms 的规划智能体。用户会描述一个应用需求，你输出一份简洁的开发计划。
+严格输出一个 JSON 对象：{"title":"简短应用名","plan":"markdown 计划"}
+plan 应包含四部分：功能设计、界面布局、交互逻辑、视觉风格，每部分一句话。`
+  let content = ''
+  for await (const c of streamCompletion({ system, user: `需求：${prompt}` })) {
+    if (c.type === 'thinking') yield { type: 'thinking', text: c.text }
+    else if (c.type === 'content') content += c.text
+    else if (c.type === 'done') content = c.content
+  }
+  const obj = extractJson(content) || {}
+  yield { type: 'done', title: obj.title || '我的应用', plan: obj.plan || content }
+}
+
 // 单文件模式：流式生成应用
 //   产出 { type:'thinking' } { type:'writing' } { type:'done', title, html }
-export async function* streamGenerate({ prompt, currentHtml, agent }) {
+export async function* streamGenerate({ prompt, currentHtml, agent, plan }) {
   const agentDef = getAgentInfo(agent)
-  const messages = buildSingleMessages(agentDef, prompt, currentHtml)
+  const messages = buildSingleMessages(agentDef, prompt, currentHtml, plan)
   let content = ''
   let reasoning = ''
   try {

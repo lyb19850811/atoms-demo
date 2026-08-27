@@ -31,7 +31,7 @@ router.post('/', async (req, res) => {
   let html = ''
   let thinking = ''
   try {
-    for await (const chunk of streamGenerate({ prompt, currentHtml: app?.html || null, agent: req.body?.agent })) {
+    for await (const chunk of streamGenerate({ prompt, currentHtml: app?.html || null, agent: req.body?.agent, plan: req.body?.plan })) {
       if (chunk.type === 'thinking') {
         thinking += chunk.text
         send('thinking', { text: chunk.text })
