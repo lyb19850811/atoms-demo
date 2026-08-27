@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, publishUrl } from '../api.js'
-import { getCurrentUser } from '../user.js'
+import { getCurrentUser, isOnboarded, markOnboarded } from '../user.js'
 import ChatPanel from '../components/ChatPanel.jsx'
 import PreviewFrame from '../components/PreviewFrame.jsx'
 import Fireworks from '../components/Fireworks.jsx'
 import PublishDialog from '../components/PublishDialog.jsx'
 import UserMenu from '../components/UserMenu.jsx'
+import FirstRunGuide from '../components/FirstRunGuide.jsx'
 
 const SAMPLES = ['做一个番茄钟', '做一个待办清单', '做一个 BMI 计算器', '做一个成语接龙游戏']
 
@@ -27,12 +28,14 @@ export default function Workspace() {
   const [publishDialog, setPublishDialog] = useState(null)
   const [thinkingText, setThinkingText] = useState('')
   const [phase, setPhase] = useState(null) // 'thinking' | 'writing' | null
+  const [showGuide, setShowGuide] = useState(false)
 
   useEffect(() => {
     if (!user) {
       nav('/register')
       return
     }
+    if (!isOnboarded()) setShowGuide(true)
     if (editId) {
       api
         .getApp(editId)
@@ -48,6 +51,11 @@ export default function Workspace() {
   function flashToast(msg) {
     setToast(msg)
     setTimeout(() => setToast(''), 2000)
+  }
+
+  function closeGuide() {
+    markOnboarded()
+    setShowGuide(false)
   }
 
   async function handleSend(prompt) {
@@ -150,6 +158,7 @@ export default function Workspace() {
         <PreviewFrame html={app?.html || ''} device={device} error={error} />
       </div>
       {toast && <div className="toast">{toast}</div>}
+      {showGuide && <FirstRunGuide onClose={closeGuide} />}
       <Fireworks active={fireworks} onDone={() => setFireworks(false)} />
       <PublishDialog url={publishDialog?.url} onClose={() => setPublishDialog(null)} />
     </div>

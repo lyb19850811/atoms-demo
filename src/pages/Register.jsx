@@ -30,9 +30,11 @@ export default function Register() {
     <div className="page">
       <div className="center-card">
         <form className="card" onSubmit={submit}>
-          <h2>👋 认识一下</h2>
+          <h2>👋 注册 / 登录</h2>
           <p className="hint">
-            {existing ? `欢迎回来，${existing.nickname}！可直接继续，或换个昵称。` : '留个昵称即可开始创作，无需注册账号密码。'}
+            {existing
+              ? `欢迎回来，${existing.nickname}！可直接继续，或换个昵称。`
+              : '输入昵称即可开始：首次使用会为你注册，之后输入相同昵称即登录并回到你的应用。'}
           </p>
           <input
             className="field"

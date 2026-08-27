@@ -945,3 +945,46 @@ button {
   justify-content: center;
   flex-wrap: wrap;
 }
+
+/* ---------- 首次引导 ---------- */
+.guide {
+  max-width: 460px;
+  text-align: left;
+}
+
+.guide .dialog-icon,
+.guide h2,
+.guide > p {
+  text-align: center;
+}
+
+.guide-steps {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  margin: 20px 0 24px;
+}
+
+.guide-step {
+  display: flex;
+  gap: 12px;
+  align-items: flex-start;
+}
+
+.guide-step-icon {
+  font-size: 22px;
+  line-height: 1;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+
+.guide-step-title {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+.guide-step-desc {
+  font-size: 13px;
+  color: var(--text-dim);
+  margin-top: 2px;
+}
