@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, shareUrl, publishUrl } from '../api.js'
+import { api, publishUrl } from '../api.js'
 import { getCurrentUser } from '../user.js'
 import ChatPanel from '../components/ChatPanel.jsx'
 import PreviewFrame from '../components/PreviewFrame.jsx'
@@ -83,15 +83,6 @@ export default function Workspace() {
     }
   }
 
-  function copyText(text, prefix) {
-    navigator.clipboard.writeText(text).then(() => flashToast(prefix + text)).catch(() => flashToast(text))
-  }
-
-  function copyShare() {
-    if (!app?.id) return
-    copyText(shareUrl(app.id), '分享链接已复制：')
-  }
-
   async function publish() {
     if (!app?.id) return
     try {
@@ -135,7 +126,6 @@ export default function Workspace() {
           <button className={device === 'mobile' ? 'active' : ''} onClick={() => setDevice('mobile')}>移动</button>
         </div>
         <button className="btn btn-sm btn-ghost" onClick={() => nav('/apps')}>我的应用</button>
-        <button className="btn btn-sm btn-ghost" onClick={copyShare} disabled={!app?.id}>🔗 分享</button>
         {published ? (
           <>
             <button className="btn btn-sm btn-ghost" onClick={unpublish}>取消发布</button>

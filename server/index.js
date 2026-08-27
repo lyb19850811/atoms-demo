@@ -29,10 +29,10 @@ app.use('/api/users', usersRouter)
 app.use('/api/apps', appsRouter)
 app.use('/api/generate', generateRouter)
 
-// 已发布应用：独立访问 URL，直接返回生成应用的完整 HTML（像一个真实部署的产品页）
+// 应用独立访问 URL：直接返回生成应用的完整 HTML（统一入口，/p/:id 即应用的链接）
 app.get('/p/:id', (req, res) => {
-  const app = db.prepare('SELECT html, published FROM apps WHERE id = ?').get(req.params.id)
-  if (!app || !app.published) return res.status(404).send('应用不存在或未发布')
+  const app = db.prepare('SELECT html FROM apps WHERE id = ?').get(req.params.id)
+  if (!app) return res.status(404).send('应用不存在')
   res.setHeader('Content-Type', 'text/html; charset=utf-8')
   res.setHeader('X-Content-Type-Options', 'nosniff')
   res.send(app.html)

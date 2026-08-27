@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { api } from '../api.js'
+import { api, publishUrl } from '../api.js'
 import { getCurrentUser } from '../user.js'
 
 function relTime(ts) {
@@ -48,7 +48,7 @@ export default function Apps() {
                 <p className="desc">{a.prompt}</p>
                 <div className="meta">更新于 {relTime(a.updated_at)}</div>
                 <div className="actions">
-                  <button className="btn btn-sm btn-primary" onClick={() => nav(`/app/${a.id}`)}>查看</button>
+                  <button className="btn btn-sm btn-primary" onClick={() => window.open(publishUrl(a.id), '_blank', 'noopener')}>查看</button>
                   <button className="btn btn-sm btn-ghost" onClick={() => nav(`/workspace?edit=${a.id}`)}>继续编辑</button>
                 </div>
               </div>
