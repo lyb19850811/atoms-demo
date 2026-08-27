@@ -1,10 +1,13 @@
 import { useRef, useState, useEffect } from 'react'
 import AgentBar from './AgentBar.jsx'
 import FeatureMenu from './FeatureMenu.jsx'
+import { getAgent } from '../data/agents.js'
 
 export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend }) {
   const [input, setInput] = useState('')
   const [thinkingOpen, setThinkingOpen] = useState(true)
+  const [activeAgent, setActiveAgent] = useState('engineer')
+  const activeInfo = getAgent(activeAgent)
   const listRef = useRef(null)
   const taRef = useRef(null)
   const thinkingRef = useRef(null)
@@ -21,7 +24,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
   function submit() {
     const v = input.trim()
     if (!v || generating) return
-    onSend(v)
+    onSend(v, activeAgent)
     setInput('')
   }
 
@@ -38,10 +41,10 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
         {messages.length === 0 && (
           <div className="chat-empty">
             <div style={{ fontSize: 40, marginBottom: 12 }}>💡</div>
-            <p>描述你想做的应用，智能体会帮你生成并预览。</p>
+            <p>描述你想做的应用，或点上方选择一个智能体，@Ta 来负责。</p>
             <div className="chips">
               {samples.map((s) => (
-                <button key={s} className="chip" onClick={() => onSend(s)} disabled={generating}>
+                <button key={s} className="chip" onClick={() => onSend(s, activeAgent)} disabled={generating}>
                   {s}
                 </button>
               ))}
@@ -88,13 +91,17 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
       </div>
 
       <div className="chat-input">
-        <AgentBar />
+        <AgentBar activeId={activeAgent} onSelect={setActiveAgent} />
+        <div className="chat-agent-status">
+          <span>当前智能体：</span>
+          <span className="chat-agent-name"><em>{activeInfo.emoji}</em> {activeInfo.name} · {activeInfo.role}</span>
+        </div>
         <textarea
           ref={taRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={messages.length > 0 ? '继续描述修改想法，或 @某个智能体 指定角色…' : '请@工程师制作快速原型，例如：做一个番茄钟'}
+          placeholder={messages.length > 0 ? `继续描述，@${activeInfo.name} 会接手…` : `请@${activeInfo.name}，例如：做一个番茄钟`}
           disabled={generating}
         />
         <div className="row">
@@ -103,7 +110,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
             <button className="btn btn-sm btn-ghost" title="主题（即将上线）">🎨 主题 ▾</button>
           </div>
           <button className="btn btn-primary" onClick={submit} disabled={generating || !input.trim()}>
-            {generating ? (phase === 'thinking' ? '思考中…' : '生成中…') : '构建'}
+            {generating ? (phase === 'thinking' ? '思考中…' : '生成中…') : `以${activeInfo.name}构建`}
           </button>
         </div>
       </div>

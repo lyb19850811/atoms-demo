@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
 import { api, publishUrl } from '../api.js'
 import { getCurrentUser, isOnboarded, markOnboarded } from '../user.js'
+import { getAgent } from '../data/agents.js'
 import ChatPanel from '../components/ChatPanel.jsx'
 import PreviewFrame from '../components/PreviewFrame.jsx'
 import Fireworks from '../components/Fireworks.jsx'
@@ -61,7 +62,7 @@ export default function Workspace() {
     setShowGuide(false)
   }
 
-  async function handleSend(prompt) {
+  async function handleSend(prompt, agent) {
     if (generating) return
     setError('')
     setGenerating(true)
@@ -71,7 +72,7 @@ export default function Workspace() {
     let thinkingAccum = ''
     try {
       await api.generateStream(
-        { appId: app?.id, prompt, userId: user?.id },
+        { appId: app?.id, prompt, userId: user?.id, agent },
         {
           thinking: (d) => {
             thinkingAccum += d.text
@@ -81,9 +82,10 @@ export default function Workspace() {
           done: (d) => {
             setApp(d)
             if (!app?.id) setPublished(false)
+            const agentName = getAgent(agent)?.name || '工程师'
             setMessages((m) => [
               ...m,
-              { role: 'assistant', content: `已生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。`, thinking: thinkingAccum }
+              { role: 'assistant', content: `已由 ${agentName} 生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。`, thinking: thinkingAccum }
             ])
           },
           error: (d) => {
