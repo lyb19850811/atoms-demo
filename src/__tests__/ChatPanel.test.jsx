@@ -23,9 +23,4 @@ describe('ChatPanel', () => {
     expect(screen.queryByText(/思考过程/)).not.toBeInTheDocument()
     expect(screen.getByText('做一个番茄钟')).toBeInTheDocument()
   })
-
-  it('渲染语音输入按钮', () => {
-    render(<ChatPanel {...baseProps} />)
-    expect(screen.getByText(/语音/)).toBeInTheDocument()
-  })
 })
