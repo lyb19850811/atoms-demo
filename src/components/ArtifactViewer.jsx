@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import ProjectViewer from './ProjectViewer.jsx'
+import { downloadUrl } from '../api.js'
 
 // 产物浏览：单文件 = 预览/代码；团队项目 = 文件树 + 预览/代码
 export default function ArtifactViewer({ app, files, onClose }) {
@@ -25,6 +26,7 @@ export default function ArtifactViewer({ app, files, onClose }) {
                 {copied ? '✓ 已复制' : '复制代码'}
               </button>
             )}
+            <button className="btn btn-sm btn-ghost" onClick={() => window.open(downloadUrl(app?.id), '_blank')}>⬇️ 下载</button>
             <button className="btn btn-sm btn-ghost" onClick={onClose}>关闭</button>
           </div>
         </div>

@@ -1,6 +1,6 @@
 import { useEffect, useState, useRef } from 'react'
 import { useNavigate, useSearchParams } from 'react-router-dom'
-import { api, publishUrl } from '../api.js'
+import { api, publishUrl, downloadUrl } from '../api.js'
 import { getCurrentUser, isOnboarded, markOnboarded } from '../user.js'
 import { getAgent } from '../data/agents.js'
 import ChatPanel from '../components/ChatPanel.jsx'
@@ -306,6 +306,7 @@ export default function Workspace() {
           <button className={device === 'mobile' ? 'active' : ''} onClick={() => setDevice('mobile')}>移动</button>
         </div>
         <button className="btn btn-sm btn-ghost" onClick={() => setShowCode(true)} disabled={!app?.id}>产物</button>
+        <button className="btn btn-sm btn-ghost" onClick={() => window.open(downloadUrl(app.id), '_blank')} disabled={!app?.id}>下载</button>
         <button className="btn btn-sm btn-ghost" onClick={() => nav('/apps')}>我的应用</button>
         {published ? (
           <button className="btn btn-sm btn-primary" onClick={showPublishInfo}>✅ 已发布</button>

@@ -1,5 +1,6 @@
 import { Router } from 'express'
 import db from '../db.js'
+import { buildZip } from '../lib/zip.js'
 
 const router = Router()
 
@@ -44,6 +45,33 @@ router.get('/:id/files', (req, res) => {
   if (!app) return res.status(404).json({ error: '应用不存在' })
   const files = db.prepare('SELECT path, content, kind FROM files WHERE app_id = ? ORDER BY path').all(app.id)
   res.json({ mode: app.mode, entry: app.entry, files })
+})
+
+// 下载/导出：单文件返回 HTML，团队项目返回 ZIP
+router.get('/:id/download', (req, res) => {
+  const app = db.prepare('SELECT * FROM apps WHERE id = ?').get(req.params.id)
+  if (!app) return res.status(404).json({ error: '应用不存在' })
+  const rawName = (app.title || 'app').slice(0, 40) || 'app'
+  const asciiName = rawName.replace(/[^\x20-\x7e]/g, '_').replace(/[\\/]/g, '_') || 'app'
+  const contentDisposition = (ext) =>
+    `attachment; filename="${asciiName}.${ext}"; filename*=UTF-8''${encodeURIComponent(rawName + '.' + ext)}`
+
+  if (app.mode === 'team') {
+    const files = db.prepare('SELECT path, content FROM files WHERE app_id = ? ORDER BY path').all(app.id)
+    if (files.length === 0) return res.status(404).json({ error: '暂无项目文件' })
+    res.setHeader('Content-Type', 'application/zip')
+    res.setHeader('Content-Disposition', contentDisposition('zip'))
+    return res.send(buildZip(files))
+  }
+
+  let html = app.html
+  if (app.entry) {
+    const f = db.prepare('SELECT content FROM files WHERE app_id = ? AND path = ?').get(app.id, app.entry)
+    if (f) html = f.content
+  }
+  res.setHeader('Content-Type', 'text/html; charset=utf-8')
+  res.setHeader('Content-Disposition', contentDisposition('html'))
+  res.send(html)
 })
 
 // 发布 / 取消发布：切换应用在 /p/:id 的独立访问状态

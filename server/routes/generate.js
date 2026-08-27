@@ -42,16 +42,17 @@ router.post('/', async (req, res) => {
       }
     }
 
-    // 持久化
+    // 持久化（含单文件模式的开发计划）
     const now = Date.now()
+    const plan = req.body?.plan || null
     let id = app?.id
     if (app) {
-      db.prepare('UPDATE apps SET title = ?, html = ?, updated_at = ? WHERE id = ?').run(title, html, now, id)
+      db.prepare('UPDATE apps SET title = ?, html = ?, plan = ?, updated_at = ? WHERE id = ?').run(title, html, plan, now, id)
     } else {
       id = crypto.randomUUID()
       db.prepare(
-        'INSERT INTO apps (id, user_id, title, prompt, html, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?)'
-      ).run(id, req.body?.userId || null, title, prompt, html, now, now)
+        'INSERT INTO apps (id, user_id, title, prompt, html, plan, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)'
+      ).run(id, req.body?.userId || null, title, prompt, html, plan, now, now)
     }
 
     // 保存对话：用户需求 + 助手结果（含模型思考过程）
