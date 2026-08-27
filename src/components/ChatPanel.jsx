@@ -49,7 +49,15 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
         {messages.map((m, i) => (
           <div key={i} className={`msg ${m.role}`}>
             <div className="avatar">{m.role === 'user' ? '🧑' : '✦'}</div>
-            <div className="bubble">{m.content}</div>
+            <div className="msg-main">
+              {m.role === 'assistant' && m.thinking && (
+                <details className="msg-thinking">
+                  <summary>🧠 思考过程</summary>
+                  <div className="msg-thinking-body">{m.thinking}</div>
+                </details>
+              )}
+              <div className="bubble">{m.content}</div>
+            </div>
           </div>
         ))}
 

@@ -29,10 +29,13 @@ router.post('/', async (req, res) => {
 
   let title = ''
   let html = ''
+  let thinking = ''
   try {
     for await (const chunk of streamGenerate({ prompt, currentHtml: app?.html || null })) {
-      if (chunk.type === 'thinking') send('thinking', { text: chunk.text })
-      else if (chunk.type === 'writing') send('writing', { text: chunk.text })
+      if (chunk.type === 'thinking') {
+        thinking += chunk.text
+        send('thinking', { text: chunk.text })
+      } else if (chunk.type === 'writing') send('writing', { text: chunk.text })
       else if (chunk.type === 'done') {
         title = chunk.title
         html = chunk.html
@@ -51,9 +54,12 @@ router.post('/', async (req, res) => {
       ).run(id, req.body?.userId || null, title, prompt, html, now, now)
     }
 
-    const insertMsg = db.prepare('INSERT INTO messages (app_id, role, content, created_at) VALUES (?, ?, ?, ?)')
-    insertMsg.run(id, 'user', prompt, now)
-    insertMsg.run(id, 'assistant', `已生成「${title}」`, now)
+    // 保存对话：用户需求 + 助手结果（含模型思考过程）
+    const insertMsg = db.prepare(
+      'INSERT INTO messages (app_id, role, content, thinking, created_at) VALUES (?, ?, ?, ?, ?)'
+    )
+    insertMsg.run(id, 'user', prompt, null, now)
+    insertMsg.run(id, 'assistant', `已生成「${title}」`, thinking, now)
 
     send('done', { id, title, html })
   } catch (e) {

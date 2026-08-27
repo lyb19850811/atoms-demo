@@ -365,6 +365,39 @@ button {
   background: #232840;
 }
 
+.msg-main {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.msg-thinking {
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  font-size: 12px;
+  overflow: hidden;
+}
+
+.msg-thinking summary {
+  cursor: pointer;
+  padding: 8px 12px;
+  color: var(--text-dim);
+  user-select: none;
+}
+
+.msg-thinking-body {
+  padding: 0 12px 10px;
+  color: #8a93ab;
+  white-space: pre-wrap;
+  word-break: break-word;
+  max-height: 160px;
+  overflow-y: auto;
+  line-height: 1.6;
+}
+
 .typing {
   display: flex;
   align-items: center;

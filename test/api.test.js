@@ -90,6 +90,19 @@ test('应用：列表 / 详情 / HTML / 独立链接 / 发布', async () => {
   assert.equal(pub.url, `/p/${appId}`)
 })
 
+test('对话思考过程可保存与读取', async () => {
+  const userId = randomUUID()
+  const appId = randomUUID()
+  const now = Date.now()
+  db.prepare('INSERT INTO users (id, nickname, created_at) VALUES (?, ?, ?)').run(userId, '思考测试', now)
+  db.prepare('INSERT INTO apps (id, user_id, title, prompt, html, created_at, updated_at, published) VALUES (?, ?, ?, ?, ?, ?, ?, 0)').run(appId, userId, 't', 'p', '<h1>x</h1>', now, now)
+  db.prepare('INSERT INTO messages (app_id, role, content, thinking, created_at) VALUES (?, ?, ?, ?, ?)').run(appId, 'assistant', '已生成', '这是思考过程', now)
+
+  const detail = await (await fetch(`${base}/api/apps/${appId}`)).json()
+  const msg = detail.messages.find((m) => m.role === 'assistant')
+  assert.equal(msg.thinking, '这是思考过程')
+})
+
 test('管理后台：用户/应用列表 + 级联删除用户', async () => {
   const users = await (await fetch(`${base}/api/admin/users`)).json()
   assert.ok(users.length >= 1)

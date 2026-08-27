@@ -68,16 +68,23 @@ export default function Workspace() {
     setPhase('thinking')
     setThinkingText('')
     setMessages((m) => [...m, { role: 'user', content: prompt }])
+    let thinkingAccum = ''
     try {
       await api.generateStream(
         { appId: app?.id, prompt, userId: user?.id },
         {
-          thinking: (d) => setThinkingText((t) => t + d.text),
+          thinking: (d) => {
+            thinkingAccum += d.text
+            setThinkingText((t) => t + d.text)
+          },
           writing: () => setPhase('writing'),
           done: (d) => {
             setApp(d)
             if (!app?.id) setPublished(false)
-            setMessages((m) => [...m, { role: 'assistant', content: `已生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。` }])
+            setMessages((m) => [
+              ...m,
+              { role: 'assistant', content: `已生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。`, thinking: thinkingAccum }
+            ])
           },
           error: (d) => {
             setError(d.message)

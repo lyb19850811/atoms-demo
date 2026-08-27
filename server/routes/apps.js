@@ -18,7 +18,7 @@ router.get('/:id', (req, res) => {
   const app = db.prepare('SELECT * FROM apps WHERE id = ?').get(req.params.id)
   if (!app) return res.status(404).json({ error: '应用不存在' })
   const messages = db
-    .prepare('SELECT role, content, created_at FROM messages WHERE app_id = ? ORDER BY id ASC')
+    .prepare('SELECT role, content, thinking, created_at FROM messages WHERE app_id = ? ORDER BY id ASC')
     .all(app.id)
   res.json({ ...app, messages })
 })

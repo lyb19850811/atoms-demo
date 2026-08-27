@@ -35,6 +35,7 @@ CREATE TABLE IF NOT EXISTS messages (
   app_id     TEXT NOT NULL,
   role       TEXT NOT NULL,
   content    TEXT NOT NULL,
+  thinking   TEXT,
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(app_id);
@@ -44,6 +45,12 @@ CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(app_id);
 const appCols = db.prepare('PRAGMA table_info(apps)').all()
 if (!appCols.some((c) => c.name === 'published')) {
   db.exec('ALTER TABLE apps ADD COLUMN published INTEGER NOT NULL DEFAULT 0')
+}
+
+// 迁移：为旧库的 messages 表补充 thinking 列（保存模型思考过程）
+const msgCols = db.prepare('PRAGMA table_info(messages)').all()
+if (!msgCols.some((c) => c.name === 'thinking')) {
+  db.exec('ALTER TABLE messages ADD COLUMN thinking TEXT')
 }
 
 export default db
