@@ -5,3 +5,7 @@ data/
 *.local
 .DS_Store
 npm-debug.log*
+
+# 参考截图（非项目文件）
+ui.png
+team-ui.png
