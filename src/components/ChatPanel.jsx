@@ -94,7 +94,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
           </div>
         )}
 
-        {plan && !building && (
+        {plan && !generating && (
           <div className="plan-card">
             <div className="plan-card-head">📋 {plan.title || '团队开发计划'} <span className="plan-edit-hint">（可编辑，改后确认）</span></div>
             <textarea
