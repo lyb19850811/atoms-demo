@@ -1,4 +1,6 @@
 import { useRef, useState, useEffect } from 'react'
+import AgentBar from './AgentBar.jsx'
+import FeatureMenu from './FeatureMenu.jsx'
 
 export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend }) {
   const [input, setInput] = useState('')
@@ -86,18 +88,22 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
       </div>
 
       <div className="chat-input">
+        <AgentBar />
         <textarea
           ref={taRef}
           value={input}
           onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={messages.length > 0 ? '继续描述修改想法，例如：把配色改成深色…' : '描述你想要的应用，例如：一个可以计时的番茄钟'}
+          placeholder={messages.length > 0 ? '继续描述修改想法，或 @某个智能体 指定角色…' : '请@工程师制作快速原型，例如：做一个番茄钟'}
           disabled={generating}
         />
         <div className="row">
-          <span className="tip">Enter 发送 · Shift+Enter 换行</span>
+          <div className="row-left">
+            <FeatureMenu />
+            <button className="btn btn-sm btn-ghost" title="主题（即将上线）">🎨 主题 ▾</button>
+          </div>
           <button className="btn btn-primary" onClick={submit} disabled={generating || !input.trim()}>
-            {generating ? (phase === 'thinking' ? '思考中…' : '生成中…') : '生成'}
+            {generating ? (phase === 'thinking' ? '思考中…' : '生成中…') : '构建'}
           </button>
         </div>
       </div>
