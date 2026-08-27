@@ -4,6 +4,8 @@ import { api, shareUrl, publishUrl } from '../api.js'
 import { getCurrentUser } from '../user.js'
 import ChatPanel from '../components/ChatPanel.jsx'
 import PreviewFrame from '../components/PreviewFrame.jsx'
+import Fireworks from '../components/Fireworks.jsx'
+import PublishDialog from '../components/PublishDialog.jsx'
 
 const SAMPLES = ['做一个番茄钟', '做一个待办清单', '做一个 BMI 计算器', '做一个成语接龙游戏']
 
@@ -20,6 +22,8 @@ export default function Workspace() {
   const [device, setDevice] = useState('desktop')
   const [toast, setToast] = useState('')
   const [published, setPublished] = useState(false)
+  const [fireworks, setFireworks] = useState(false)
+  const [publishDialog, setPublishDialog] = useState(null)
 
   useEffect(() => {
     if (!user) {
@@ -75,10 +79,17 @@ export default function Workspace() {
     try {
       await api.publish(app.id, true)
       setPublished(true)
-      copyText(publishUrl(app.id), '已发布，链接已复制：')
+      setFireworks(true)
+      const url = publishUrl(app.id)
+      setTimeout(() => setPublishDialog({ url }), 500)
     } catch (e) {
       setError(e.message)
     }
+  }
+
+  function showPublishInfo() {
+    if (!app?.id) return
+    setPublishDialog({ url: publishUrl(app.id) })
   }
 
   async function unpublish() {
@@ -90,11 +101,6 @@ export default function Workspace() {
     } catch (e) {
       setError(e.message)
     }
-  }
-
-  function copyPublishLink() {
-    if (!app?.id) return
-    copyText(publishUrl(app.id), '发布链接已复制：')
   }
 
   return (
@@ -115,7 +121,7 @@ export default function Workspace() {
         {published ? (
           <>
             <button className="btn btn-sm btn-ghost" onClick={unpublish}>取消发布</button>
-            <button className="btn btn-sm btn-primary" onClick={copyPublishLink}>✅ 已发布</button>
+            <button className="btn btn-sm btn-primary" onClick={showPublishInfo}>✅ 已发布</button>
           </>
         ) : (
           <button className="btn btn-sm btn-primary" onClick={publish} disabled={!app?.id}>🚀 发布</button>
@@ -132,6 +138,8 @@ export default function Workspace() {
         <PreviewFrame html={app?.html || ''} device={device} error={error} />
       </div>
       {toast && <div className="toast">{toast}</div>}
+      <Fireworks active={fireworks} onDone={() => setFireworks(false)} />
+      <PublishDialog url={publishDialog?.url} onClose={() => setPublishDialog(null)} />
     </div>
   )
 }
