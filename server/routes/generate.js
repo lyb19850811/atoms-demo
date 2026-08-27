@@ -62,7 +62,7 @@ router.post('/', async (req, res) => {
     insertMsg.run(id, 'user', prompt, null, now)
     insertMsg.run(id, 'assistant', `已生成「${title}」`, thinking, now)
 
-    send('done', { id, title, html })
+    send('done', { id, title, html, plan })
   } catch (e) {
     console.error('[generate]', e.message)
     send('error', { message: e.message || '生成失败，请稍后重试' })

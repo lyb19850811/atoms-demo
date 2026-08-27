@@ -4,7 +4,7 @@ import { api, publishUrl } from '../api.js'
 import { getCurrentUser, isOnboarded, markOnboarded } from '../user.js'
 import { getAgent } from '../data/agents.js'
 import ChatPanel from '../components/ChatPanel.jsx'
-import PreviewFrame from '../components/PreviewFrame.jsx'
+import TabbedPreview from '../components/TabbedPreview.jsx'
 import Fireworks from '../components/Fireworks.jsx'
 import PublishDialog from '../components/PublishDialog.jsx'
 import UserMenu from '../components/UserMenu.jsx'
@@ -38,6 +38,8 @@ export default function Workspace() {
   const [building, setBuilding] = useState(false)
   const [files, setFiles] = useState([]) // 团队模式项目文件
   const [entry, setEntry] = useState('')
+  const [openTabs, setOpenTabs] = useState([]) // 右侧预览栏打开的文件标签
+  const [activeTab, setActiveTab] = useState('')
 
   useEffect(() => {
     if (!userId) {
@@ -52,6 +54,18 @@ export default function Workspace() {
           setApp(a)
           setMessages(a.messages || [])
           setPublished(!!a.published)
+          if (a.mode === 'team' && a.files?.length) {
+            setFiles(a.files)
+            setEntry(a.entry)
+            setOpenTabs(a.files)
+            setActiveTab(a.entry || a.files[0].path)
+          } else if (a.html) {
+            const tabs = [{ path: 'index.html', content: a.html }]
+            if (a.plan) tabs.push({ path: '计划.md', content: a.plan })
+            setFiles([])
+            setOpenTabs(tabs)
+            setActiveTab('index.html')
+          }
         })
         .catch((e) => setError(e.message))
     }
@@ -65,6 +79,20 @@ export default function Workspace() {
   function closeGuide() {
     markOnboarded()
     setShowGuide(false)
+  }
+
+  // 在右侧标签页打开文件（去重）
+  function openFile(path) {
+    const file = artifactFiles.find((f) => f.path === path)
+    if (!file) return
+    setActiveTab(path)
+    setOpenTabs((tabs) => (tabs.some((t) => t.path === path) ? tabs : [...tabs, file]))
+  }
+
+  function closeTab(path) {
+    const next = openTabs.filter((t) => t.path !== path)
+    setOpenTabs(next)
+    if (activeTab === path) setActiveTab(next[0]?.path || '')
   }
 
   async function handleSend(prompt, agent) {
@@ -139,6 +167,9 @@ export default function Workspace() {
             if (!appId) setPublished(false)
             const agentName = getAgent(agent)?.name || '工程师'
             setPlan(null)
+            setFiles([])
+            setOpenTabs([{ path: 'index.html', content: d.html }])
+            setActiveTab('index.html')
             setMessages((m) => [
               ...m,
               { role: 'assistant', content: `已由 ${agentName} 生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。`, thinking: thinkingAccum }
@@ -238,10 +269,13 @@ export default function Workspace() {
             setSteps((s) => [...s, { seq: d.seq, agentId: d.agentId, agentName: d.agentName, task: d.task, status: 'running' }]),
           step_done: (d) => setSteps((s) => s.map((x) => (x.seq === d.seq ? { ...x, status: 'done' } : x))),
           done: (d) => {
-            setFiles(d.files || [])
+            const fs = d.files || []
+            setFiles(fs)
             setEntry(d.entry || '')
             setApp((a) => ({ ...(a || { id: d.id }), mode: 'team', entry: d.entry, title: d.title }))
             setPlan(null)
+            setOpenTabs(fs)
+            setActiveTab(d.entry || fs[0]?.path || '')
             setMessages((m) => [...m, { role: 'assistant', content: `团队已完成「${d.title}」，可在右侧浏览项目文件与预览。` }])
           },
           error: (d) => {
@@ -289,8 +323,7 @@ export default function Workspace() {
     }
   }
 
-  // 派生：中间栏产物文件 + 右侧预览 HTML
-  const previewHtml = files.length > 0 ? (files.find((f) => f.path === entry)?.content || '') : (app?.html || '')
+  // 派生：中间栏产物文件列表
   const artifactFiles = files.length > 0
     ? files
     : [
@@ -332,8 +365,8 @@ export default function Workspace() {
           building={building}
           onConfirmPlan={onConfirmPlan}
         />
-        <ArtifactsPanel files={artifactFiles} />
-        <PreviewFrame html={previewHtml} error={error} />
+        <ArtifactsPanel files={artifactFiles} activePath={activeTab} onOpenFile={openFile} />
+        <TabbedPreview tabs={openTabs} activePath={activeTab} onActivate={setActiveTab} onClose={closeTab} />
       </div>
       {toast && <div className="toast">{toast}</div>}
       {showGuide && <FirstRunGuide onClose={closeGuide} />}
