@@ -1,15 +1,11 @@
 import { useRef, useState, useEffect } from 'react'
-import AgentBar from './AgentBar.jsx'
 import FeatureMenu from './FeatureMenu.jsx'
-import { getAgent, AGENTS } from '../data/agents.js'
+import { getAgent } from '../data/agents.js'
 
 export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend, onStop, teamMode, onToggleTeamMode, plan, steps = [], building, onConfirmPlan }) {
   const [input, setInput] = useState('')
   const [thinkingOpen, setThinkingOpen] = useState(true)
-  const [activeAgent, setActiveAgent] = useState('engineer')
-  const [agentMenu, setAgentMenu] = useState(false)
   const [planDraft, setPlanDraft] = useState('')
-  const activeInfo = getAgent(activeAgent)
   const listRef = useRef(null)
   const taRef = useRef(null)
   const thinkingRef = useRef(null)
@@ -31,7 +27,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
   function submit() {
     const v = input.trim()
     if (!v || generating) return
-    onSend(v, activeAgent)
+    onSend(v, 'engineer')
     setInput('')
   }
 
@@ -42,29 +38,16 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
     }
   }
 
-  function handleChange(e) {
-    const v = e.target.value
-    setInput(v)
-    setAgentMenu(v.endsWith('@') && !teamMode)
-  }
-
-  function selectAgent(id) {
-    setActiveAgent(id)
-    setInput((prev) => prev.replace(/@$/, ''))
-    setAgentMenu(false)
-    taRef.current?.focus()
-  }
-
   return (
     <div className="chat">
       <div className="chat-messages" ref={listRef}>
         {messages.length === 0 && (
           <div className="chat-empty">
             <div style={{ fontSize: 40, marginBottom: 12 }}>💡</div>
-            <p>描述你想做的应用，或点上方选择一个智能体，@Ta 来负责。</p>
+            <p>描述你想做的应用，智能体会帮你生成并预览。</p>
             <div className="chips">
               {samples.map((s) => (
-                <button key={s} className="chip" onClick={() => onSend(s, activeAgent)} disabled={generating}>
+                <button key={s} className="chip" onClick={() => onSend(s, 'engineer')} disabled={generating}>
                   {s}
                 </button>
               ))}
@@ -139,36 +122,17 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
       </div>
 
       <div className="chat-input">
-        {teamMode ? (
+        {teamMode && (
           <div className="chat-team-note">🤝 团队模式：团队组长自动编排（产品经理 → 架构师 → 工程师）</div>
-        ) : (
-          <>
-            <AgentBar activeId={activeAgent} onSelect={setActiveAgent} />
-            <div className="chat-agent-status">
-              <span>当前智能体：</span>
-              <span className="chat-agent-name"><em>{activeInfo.emoji}</em> {activeInfo.name} · {activeInfo.role}</span>
-            </div>
-          </>
         )}
         <textarea
           ref={taRef}
           value={input}
-          onChange={handleChange}
+          onChange={(e) => setInput(e.target.value)}
           onKeyDown={onKeyDown}
-          placeholder={teamMode ? '描述你的项目需求，例如：做一个五子棋游戏（支持人机对战）' : (messages.length > 0 ? `继续描述，@${activeInfo.name} 会接手…` : `请@${activeInfo.name}，例如：做一个番茄钟`)}
+          placeholder={teamMode ? '描述你的项目需求，例如：做一个五子棋游戏（支持人机对战）' : '描述你想要的应用，例如：做一个番茄钟'}
           disabled={generating}
         />
-        {agentMenu && (
-          <div className="agent-mention-popover">
-            {AGENTS.map((a) => (
-              <div key={a.id} className="agent-mention-item" onClick={() => selectAgent(a.id)}>
-                <span className="agent-mention-emoji" style={{ background: a.color }}>{a.emoji}</span>
-                <span className="agent-mention-name">{a.name}</span>
-                <span className="agent-mention-role">{a.role}</span>
-              </div>
-            ))}
-          </div>
-        )}
         <div className="row">
           <div className="row-left">
             <FeatureMenu teamMode={teamMode} onToggleTeamMode={onToggleTeamMode} />
@@ -178,7 +142,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
             <button className="btn btn-stop" onClick={onStop}>⏹ 停止</button>
           ) : (
             <button className="btn btn-primary" onClick={submit} disabled={!input.trim()}>
-              {teamMode ? '开始规划' : `以${activeInfo.name}构建`}
+              {teamMode ? '开始规划' : '构建'}
             </button>
           )}
         </div>
