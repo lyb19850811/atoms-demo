@@ -1,12 +1,25 @@
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 
 // 功能菜单（团队模式 / 附件 / 连接器 / 视频 / 深度研究 / 竞赛模式）
 export default function FeatureMenu({ teamMode, onToggleTeamMode }) {
   const [open, setOpen] = useState(false)
   const [deepResearch, setDeepResearch] = useState(false)
+  const ref = useRef(null)
+
+  // 点击卡片外部时自动收起
+  useEffect(() => {
+    if (!open) return
+    function onDocClick(e) {
+      if (ref.current && !ref.current.contains(e.target)) {
+        setOpen(false)
+      }
+    }
+    document.addEventListener('mousedown', onDocClick)
+    return () => document.removeEventListener('mousedown', onDocClick)
+  }, [open])
 
   return (
-    <div className="feature-menu">
+    <div className="feature-menu" ref={ref}>
       <button className="btn btn-sm btn-ghost" onClick={() => setOpen((v) => !v)}>
         ⚙️ 功能 ▾
       </button>
