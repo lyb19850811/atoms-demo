@@ -5,7 +5,7 @@ import { fileURLToPath } from 'node:url'
 
 // 用 Node 内置 SQLite：零原生依赖，本地/服务器行为一致，部署简单
 const __dirname = path.dirname(fileURLToPath(import.meta.url))
-const dataDir = path.join(__dirname, '..', 'data')
+const dataDir = process.env.DATA_DIR || path.join(__dirname, '..', 'data')
 fs.mkdirSync(dataDir, { recursive: true })
 
 const db = new DatabaseSync(path.join(dataDir, 'atoms.db'))

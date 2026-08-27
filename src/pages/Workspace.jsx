@@ -8,6 +8,7 @@ import Fireworks from '../components/Fireworks.jsx'
 import PublishDialog from '../components/PublishDialog.jsx'
 import UserMenu from '../components/UserMenu.jsx'
 import FirstRunGuide from '../components/FirstRunGuide.jsx'
+import CodeViewer from '../components/CodeViewer.jsx'
 
 const SAMPLES = ['做一个番茄钟', '做一个待办清单', '做一个 BMI 计算器', '做一个成语接龙游戏']
 
@@ -29,6 +30,7 @@ export default function Workspace() {
   const [thinkingText, setThinkingText] = useState('')
   const [phase, setPhase] = useState(null) // 'thinking' | 'writing' | null
   const [showGuide, setShowGuide] = useState(false)
+  const [showCode, setShowCode] = useState(false)
 
   useEffect(() => {
     if (!user) {
@@ -134,6 +136,7 @@ export default function Workspace() {
           <button className={device === 'desktop' ? 'active' : ''} onClick={() => setDevice('desktop')}>桌面</button>
           <button className={device === 'mobile' ? 'active' : ''} onClick={() => setDevice('mobile')}>移动</button>
         </div>
+        <button className="btn btn-sm btn-ghost" onClick={() => setShowCode(true)} disabled={!app?.id}>代码</button>
         <button className="btn btn-sm btn-ghost" onClick={() => nav('/apps')}>我的应用</button>
         {published ? (
           <>
@@ -159,6 +162,7 @@ export default function Workspace() {
       </div>
       {toast && <div className="toast">{toast}</div>}
       {showGuide && <FirstRunGuide onClose={closeGuide} />}
+      {showCode && <CodeViewer html={app?.html || ''} onClose={() => setShowCode(false)} />}
       <Fireworks active={fireworks} onDone={() => setFireworks(false)} />
       <PublishDialog url={publishDialog?.url} onClose={() => setPublishDialog(null)} />
     </div>

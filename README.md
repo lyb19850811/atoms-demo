@@ -46,8 +46,62 @@
         │ node:sqlite                 │ HTTPS
 ┌───────▼───────────┐      ┌──────────▼─────────┐
 │  SQLite (data/)    │      │  DeepSeek API      │
-│  users/apps/msgs   │      │  deepseek-chat     │
+│  users/apps/msgs   │      │  deepseek-v4-flash │
 └───────────────────┘      └────────────────────┘
+```
+
+### 架构图（Mermaid）
+
+```mermaid
+flowchart TB
+    subgraph Client["浏览器（React SPA）"]
+        A1[落地页 / 注册登录]
+        A2[工作台：聊天 + 沙箱预览]
+        A3[我的应用]
+        A4[管理后台]
+    end
+
+    subgraph Server["Express 服务器（单端口，同源无 CORS）"]
+        B1[静态托管 dist/]
+        B2[POST /api/users 注册/登录]
+        B3[POST /api/generate SSE 流式生成]
+        B4[GET /api/apps 应用 CRUD]
+        B5[GET /p/:id 独立访问]
+        B6[API /api/admin 管理]
+    end
+
+    DB[(SQLite data/atoms.db)]
+    LLM[DeepSeek API deepseek-v4-flash]
+
+    A1 --> Server
+    A2 --> Server
+    A3 --> Server
+    A4 --> Server
+    B3 -->|流式 reasoning_content + 代码| LLM
+    B2 & B3 & B4 & B6 --> DB
+    B5 --> DB
+```
+
+### 生成时序（Mermaid）
+
+```mermaid
+sequenceDiagram
+    participant U as 用户
+    participant F as 前端
+    participant S as Express
+    participant L as DeepSeek
+
+    U->>F: 输入需求
+    F->>S: POST /api/generate（SSE）
+    S->>L: 流式请求
+    L-->>S: reasoning_content（真实思考）
+    S-->>F: event: thinking
+    F-->>U: 实时展示思考过程
+    L-->>S: content（JSON 代码）
+    S-->>F: event: writing
+    S->>S: 解析 JSON + 持久化 SQLite
+    S-->>F: event: done
+    F-->>U: 沙箱预览应用
 ```
 
 ## 目录结构
@@ -55,19 +109,23 @@
 ```
 atoms-demo/
 ├── server/
-│   ├── index.js          # Express 入口：静态托管 + API
+│   ├── index.js          # 入口：读取 .env 并监听端口
+│   ├── app.js            # Express 应用（路由/中间件，可测试）
 │   ├── db.js             # node:sqlite 初始化（users/apps/messages）
-│   ├── llm.js            # DeepSeek provider 抽象层 + 输出解析
+│   ├── llm.js            # DeepSeek 流式 provider 抽象层 + 输出解析
 │   └── routes/
-│       ├── users.js      # 注册
-│       ├── generate.js   # 生成/迭代核心闭环
-│       └── apps.js       # 应用列表/详情/分享 HTML
+│       ├── users.js      # 注册/登录（昵称）
+│       ├── generate.js   # 生成/迭代核心闭环（SSE）
+│       ├── apps.js       # 应用列表/详情/发布/HTML
+│       └── admin.js      # 管理后台（用户/应用管理）
 ├── src/
-│   ├── api.js            # fetch 封装
-│   ├── user.js           # localStorage 用户状态
-│   ├── pages/            # Landing / Register / Workspace / Apps / AppView
-│   ├── components/       # ChatPanel / PreviewFrame(沙箱 iframe)
+│   ├── api.js            # fetch + SSE 流式封装
+│   ├── user.js           # localStorage 用户状态 + 引导标记
+│   ├── pages/            # Landing / Register / Workspace / Apps / Admin
+│   ├── components/       # ChatPanel / PreviewFrame / CodeViewer / Fireworks / …
 │   └── styles.css        # 暗色主题
+├── test/                 # node:test 测试（llm 单元 + API 集成）
+├── deploy.sh             # 一键部署脚本
 ├── vite.config.js        # 开发代理 /api → 3101
 └── .env                  # DEEPSEEK_API_KEY 等（不入库）
 ```
@@ -83,12 +141,26 @@ npm run dev           # 前端 :5173 + 后端 :3101（代理 /api）
 
 > 本地开发后端端口为 3101（避免与本机其他服务冲突），生产端口由 `.env` 的 `PORT` 决定。
 
+## 测试
+
+```bash
+npm test             # node:test 运行 test/ 下的单元测试 + API 集成测试
+```
+
 ## 生产构建与运行
 
 ```bash
 npm run build         # 生成 dist/
 npm start             # Express 同时托管 dist/ 与 /api
 ```
+
+## 一键部署（deploy.sh）
+
+```bash
+./deploy.sh           # 测试 → 构建 → 上传 → pm2 重启 → 健康检查
+```
+
+> 脚本默认使用 SSH 别名 `aliyun-ecs`（`~/.ssh/config`），部署目录 `/opt/atoms-demo`；按需修改脚本顶部配置。
 
 ## 部署到阿里云 ECS（已实践）
 

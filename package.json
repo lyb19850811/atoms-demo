@@ -9,7 +9,8 @@
     "dev:server": "PORT=3101 node server/index.js",
     "dev:web": "vite",
     "build": "vite build",
-    "start": "node server/index.js"
+    "start": "node server/index.js",
+    "test": "node --test"
   },
   "dependencies": {
     "dotenv": "^16.4.5",

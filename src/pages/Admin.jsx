@@ -64,6 +64,10 @@ export default function Admin() {
         </div>
         {error && <div className="error-banner">{error}</div>}
 
+        {loading ? (
+          <div className="loading"><span className="spinner" />加载中…</div>
+        ) : (
+          <>
         <div className="admin-stats">
           <div className="stat-card">
             <div className="stat-num">{users.length}</div>
@@ -125,6 +129,8 @@ export default function Admin() {
             </tbody>
           </table>
         </div>
+          </>
+        )}
       </div>
     </div>
   )

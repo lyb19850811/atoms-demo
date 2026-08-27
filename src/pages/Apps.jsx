@@ -18,6 +18,7 @@ export default function Apps() {
   const nav = useNavigate()
   const user = getCurrentUser()
   const [apps, setApps] = useState([])
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState('')
 
   useEffect(() => {
@@ -25,7 +26,11 @@ export default function Apps() {
       nav('/register')
       return
     }
-    api.listApps(user.id).then(setApps).catch((e) => setError(e.message))
+    setLoading(true)
+    api.listApps(user.id)
+      .then(setApps)
+      .catch((e) => setError(e.message))
+      .finally(() => setLoading(false))
   }, [user, nav])
 
   return (
@@ -39,7 +44,9 @@ export default function Apps() {
           </div>
         </div>
         {error && <div className="error-banner">{error}</div>}
-        {apps.length === 0 && !error ? (
+        {loading ? (
+          <div className="loading"><span className="spinner" />加载中…</div>
+        ) : apps.length === 0 && !error ? (
           <div className="preview-empty" style={{ margin: '40px auto' }}>
             <div className="big">🗂️</div>
             <p>还没有应用，去工作台创建第一个吧！</p>

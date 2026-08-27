@@ -31,7 +31,7 @@ function buildMessages(prompt, currentHtml) {
 }
 
 // 从文本中稳健地提取 JSON 对象（处理直接 JSON、--- 前缀、markdown 代码块、包裹文本等情况）
-function extractJson(text) {
+export function extractJson(text) {
   if (!text) return null
   let t = text.trim()
   // 直接解析
@@ -65,7 +65,7 @@ function extractJson(text) {
   return null
 }
 
-function parseResult(text) {
+export function parseResult(text) {
   const obj = extractJson(text)
   if (obj && typeof obj.html === 'string' && obj.html.trim()) {
     return { title: String(obj.title || '未命名应用').slice(0, 60), html: obj.html.trim() }
