@@ -831,8 +831,8 @@ button {
   margin-bottom: 16px;
 }
 
-/* ---------- 右侧标签页预览 ---------- */
-.tabbed-preview {
+/* ---------- 中间栏：预览/代码 ---------- */
+.preview-panel {
   display: flex;
   flex-direction: column;
   height: 100%;
@@ -840,7 +840,52 @@ button {
   min-width: 0;
 }
 
-.tp-tabs {
+.pp-top-tabs {
+  display: flex;
+  gap: 4px;
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-2);
+  flex-shrink: 0;
+}
+
+.pp-top-tabs button {
+  border: none;
+  background: transparent;
+  color: var(--text-dim);
+  padding: 5px 16px;
+  border-radius: 6px;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.pp-top-tabs button.active {
+  background: var(--panel-2);
+  color: var(--text);
+  font-weight: 500;
+}
+
+.pp-preview {
+  flex: 1;
+  min-height: 0;
+  overflow: hidden;
+  background: #fff;
+}
+
+.pp-preview iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+}
+
+.pp-code {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-code-tabs {
   display: flex;
   gap: 2px;
   padding: 6px 8px 0;
@@ -850,48 +895,52 @@ button {
   flex-shrink: 0;
 }
 
-.tp-tab {
+.pp-file-tab {
   display: flex;
   align-items: center;
   gap: 6px;
-  padding: 7px 12px;
+  padding: 6px 12px;
   border: 1px solid var(--border);
   border-bottom: none;
   border-radius: 8px 8px 0 0;
   cursor: pointer;
-  font-size: 13px;
+  font-size: 12.5px;
   color: var(--text-dim);
   background: var(--panel);
   white-space: nowrap;
-  max-width: 180px;
+  max-width: 160px;
 }
 
-.tp-tab.active {
+.pp-file-tab.active {
   background: var(--panel-2);
   color: var(--text);
   font-weight: 500;
 }
 
-.tp-tab-name {
+.pp-file-name {
   overflow: hidden;
   text-overflow: ellipsis;
 }
 
-.tp-tab-close {
+.pp-file-close {
   color: var(--text-dim);
   font-size: 14px;
   line-height: 1;
   padding: 0 2px;
 }
 
-.tp-tab-close:hover {
+.pp-file-close:hover {
   color: var(--danger);
 }
 
-.tp-content {
+.pp-code-content {
   flex: 1;
   min-height: 0;
   overflow: hidden;
+}
+
+.pp-code-content .cv-code {
+  height: 100%;
 }
 
 /* ---------- 产物栏（中间） ---------- */

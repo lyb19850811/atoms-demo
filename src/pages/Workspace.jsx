@@ -4,7 +4,7 @@ import { api, publishUrl } from '../api.js'
 import { getCurrentUser, isOnboarded, markOnboarded } from '../user.js'
 import { getAgent } from '../data/agents.js'
 import ChatPanel from '../components/ChatPanel.jsx'
-import TabbedPreview from '../components/TabbedPreview.jsx'
+import PreviewPanel from '../components/PreviewPanel.jsx'
 import Fireworks from '../components/Fireworks.jsx'
 import PublishDialog from '../components/PublishDialog.jsx'
 import UserMenu from '../components/UserMenu.jsx'
@@ -41,6 +41,7 @@ export default function Workspace() {
   const [openTabs, setOpenTabs] = useState([]) // 右侧预览栏打开的文件标签
   const [activeTab, setActiveTab] = useState('')
   const [artifactsCollapsed, setArtifactsCollapsed] = useState(false)
+  const [previewMode, setPreviewMode] = useState('preview') // 'preview' | 'code'
 
   useEffect(() => {
     if (!userId) {
@@ -87,6 +88,7 @@ export default function Workspace() {
     const file = artifactFiles.find((f) => f.path === path)
     if (!file) return
     setActiveTab(path)
+    setPreviewMode('code')
     setOpenTabs((tabs) => (tabs.some((t) => t.path === path) ? tabs : [...tabs, file]))
   }
 
@@ -325,6 +327,8 @@ export default function Workspace() {
   }
 
   // 派生：中间栏产物文件列表
+  // 派生：中间栏预览 HTML + 右侧产物文件列表
+  const previewHtml = files.length > 0 ? (files.find((f) => f.path === entry)?.content || '') : (app?.html || '')
   const artifactFiles = files.length > 0
     ? files
     : [
@@ -366,7 +370,15 @@ export default function Workspace() {
           building={building}
           onConfirmPlan={onConfirmPlan}
         />
-        <TabbedPreview tabs={openTabs} activePath={activeTab} onActivate={setActiveTab} onClose={closeTab} />
+        <PreviewPanel
+          mode={previewMode}
+          onModeChange={setPreviewMode}
+          previewHtml={previewHtml}
+          tabs={openTabs}
+          activePath={activeTab}
+          onActivate={setActiveTab}
+          onClose={closeTab}
+        />
         <ArtifactsPanel
           files={artifactFiles}
           activePath={activeTab}
