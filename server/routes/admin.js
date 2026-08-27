@@ -3,6 +3,14 @@ import db from '../db.js'
 
 const router = Router()
 
+// 管理后台鉴权：配置 ADMIN_TOKEN 后，请求头需带 X-Admin-Token
+router.use((req, res, next) => {
+  const token = process.env.ADMIN_TOKEN
+  if (!token) return next() // 未配置则开放（开发环境）
+  if (req.headers['x-admin-token'] === token) return next()
+  return res.status(401).json({ error: '未授权：访问令牌错误' })
+})
+
 // 用户列表（含应用数）
 router.get('/users', (req, res) => {
   const rows = db

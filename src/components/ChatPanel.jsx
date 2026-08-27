@@ -3,9 +3,11 @@ import { useRef, useState, useEffect } from 'react'
 export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend }) {
   const [input, setInput] = useState('')
   const [thinkingOpen, setThinkingOpen] = useState(true)
+  const [listening, setListening] = useState(false)
   const listRef = useRef(null)
   const taRef = useRef(null)
   const thinkingRef = useRef(null)
+  const recRef = useRef(null)
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
@@ -27,6 +29,39 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
     if (e.key === 'Enter' && !e.shiftKey) {
       e.preventDefault()
       submit()
+    }
+  }
+
+  // 卸载时停止语音识别
+  useEffect(() => () => recRef.current?.stop(), [])
+
+  function toggleVoice() {
+    const SR = window.SpeechRecognition || window.webkitSpeechRecognition
+    if (!SR) {
+      window.alert('当前浏览器不支持语音输入，请使用 Chrome / Edge')
+      return
+    }
+    if (listening) {
+      recRef.current?.stop()
+      setListening(false)
+      return
+    }
+    const rec = new SR()
+    rec.lang = 'zh-CN'
+    rec.interimResults = false
+    rec.maxAlternatives = 1
+    rec.onresult = (e) => {
+      const text = e.results?.[0]?.[0]?.transcript || ''
+      if (text) setInput((prev) => (prev ? prev + text : text))
+    }
+    rec.onend = () => setListening(false)
+    rec.onerror = () => setListening(false)
+    recRef.current = rec
+    try {
+      rec.start()
+      setListening(true)
+    } catch {
+      setListening(false)
     }
   }
 
@@ -95,7 +130,17 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
           disabled={generating}
         />
         <div className="row">
-          <span className="tip">Enter 发送 · Shift+Enter 换行</span>
+          <div className="row-left">
+            <button
+              className={`btn btn-sm btn-ghost mic-btn${listening ? ' listening' : ''}`}
+              onClick={toggleVoice}
+              disabled={generating}
+              title="语音输入"
+            >
+              {listening ? '🔴 聆听中…' : '🎤 语音'}
+            </button>
+            <span className="tip">Enter 发送 · Shift+Enter 换行</span>
+          </div>
           <button className="btn btn-primary" onClick={submit} disabled={generating || !input.trim()}>
             {generating ? (phase === 'thinking' ? '思考中…' : '生成中…') : '生成'}
           </button>

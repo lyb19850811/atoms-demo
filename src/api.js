@@ -1,8 +1,9 @@
 async function request(path, options = {}) {
+  const { headers = {}, body, ...rest } = options
   const res = await fetch(path, {
-    headers: { 'Content-Type': 'application/json' },
-    ...options,
-    body: options.body ? JSON.stringify(options.body) : undefined
+    headers: { 'Content-Type': 'application/json', ...headers },
+    ...rest,
+    body: body ? JSON.stringify(body) : undefined
   })
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.error || `请求失败(${res.status})`)
@@ -55,10 +56,10 @@ export const api = {
   listApps: (userId) => request(`/api/apps?userId=${encodeURIComponent(userId)}`),
   getApp: (id) => request(`/api/apps/${id}`),
   publish: (id, published) => request(`/api/apps/${id}/publish`, { method: 'POST', body: { published } }),
-  adminUsers: () => request('/api/admin/users'),
-  adminApps: () => request('/api/admin/apps'),
-  deleteUser: (id) => request(`/api/admin/users/${id}`, { method: 'DELETE' }),
-  deleteApp: (id) => request(`/api/admin/apps/${id}`, { method: 'DELETE' })
+  adminUsers: (token) => request('/api/admin/users', { headers: { 'X-Admin-Token': token } }),
+  adminApps: (token) => request('/api/admin/apps', { headers: { 'X-Admin-Token': token } }),
+  deleteUser: (id, token) => request(`/api/admin/users/${id}`, { method: 'DELETE', headers: { 'X-Admin-Token': token } }),
+  deleteApp: (id, token) => request(`/api/admin/apps/${id}`, { method: 'DELETE', headers: { 'X-Admin-Token': token } })
 }
 
 // 分享链接：HashRouter 下用 #/app/:id，任何环境（IP:端口）都可用

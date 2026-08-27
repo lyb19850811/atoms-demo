@@ -14,6 +14,8 @@
 - 💾 **数据持久化**：用户 / 应用 / 对话历史落库 SQLite，刷新不丢失
 - 🔗 **一键分享**：每个应用有独立公开链接，任何人可直接体验
 - 🚀 **独立发布**：一键将生成应用发布为独立访问 URL（`/p/:id`），像真实部署的产品页
+- 🎤 **语音输入**：浏览器语音识别，说出需求即可生成（Chrome / Edge）
+- 🛡️ **安全防护**：接口限流 + 管理后台令牌鉴权
 - 🧑 **轻量注册**：输入昵称即进入（演示流程，不做密码体系）
 
 ## 技术栈与选型理由
@@ -191,6 +193,7 @@ DEEPSEEK_API_KEY=sk-xxxxxxxx          # 必填
 DEEPSEEK_BASE_URL=https://api.deepseek.com   # 可选
 DEEPSEEK_MODEL=deepseek-chat          # 可选
 PORT=8082                             # 可选，服务端口
+ADMIN_TOKEN=atoms-admin-2026          # 可选，管理后台访问令牌（鉴权）
 ```
 
 ## 核心 API

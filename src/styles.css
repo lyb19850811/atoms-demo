@@ -524,6 +524,32 @@ button {
   font-size: 12px;
 }
 
+.row-left {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.mic-btn {
+  padding: 6px 12px;
+}
+
+.mic-btn.listening {
+  color: #f87171;
+  border-color: rgba(248, 113, 113, 0.4);
+  animation: pulse 1.2s infinite;
+}
+
+@keyframes pulse {
+  0%,
+  100% {
+    opacity: 1;
+  }
+  50% {
+    opacity: 0.5;
+  }
+}
+
 .chips {
   display: flex;
   flex-wrap: wrap;

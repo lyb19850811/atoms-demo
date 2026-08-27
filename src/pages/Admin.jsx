@@ -2,38 +2,59 @@ import { useEffect, useState } from 'react'
 import { Link } from 'react-router-dom'
 import { api, publishUrl } from '../api.js'
 
+const TOKEN_KEY = 'admin_token'
+
 function fmt(ts) {
   return new Date(ts).toLocaleString('zh-CN', { hour12: false })
 }
 
 export default function Admin() {
+  const [token, setToken] = useState(() => sessionStorage.getItem(TOKEN_KEY) || '')
+  const [input, setInput] = useState('')
+  const [authError, setAuthError] = useState('')
   const [users, setUsers] = useState([])
   const [apps, setApps] = useState([])
-  const [loading, setLoading] = useState(true)
+  const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
 
-  async function load() {
+  async function load(tk) {
+    const t = tk || token
+    if (!t) return
     setLoading(true)
     setError('')
     try {
-      const [u, a] = await Promise.all([api.adminUsers(), api.adminApps()])
+      const [u, a] = await Promise.all([api.adminUsers(t), api.adminApps(t)])
       setUsers(u)
       setApps(a)
     } catch (e) {
       setError(e.message)
+      if (/401/.test(e.message)) {
+        sessionStorage.removeItem(TOKEN_KEY)
+        setToken('')
+        setAuthError('访问令牌无效，请重新输入')
+      }
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    load()
-  }, [])
+    if (token) load(token)
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
+
+  function login() {
+    const t = input.trim()
+    if (!t) return
+    sessionStorage.setItem(TOKEN_KEY, t)
+    setToken(t)
+    setAuthError('')
+    load(t)
+  }
 
   async function removeUser(u) {
     if (!window.confirm(`确定删除用户「${u.nickname}」及其全部 ${u.app_count} 个应用吗？此操作不可恢复。`)) return
     try {
-      await api.deleteUser(u.id)
+      await api.deleteUser(u.id, token)
       await load()
     } catch (e) {
       setError(e.message)
@@ -43,11 +64,38 @@ export default function Admin() {
   async function removeApp(a) {
     if (!window.confirm(`确定删除应用「${a.title}」吗？此操作不可恢复。`)) return
     try {
-      await api.deleteApp(a.id)
+      await api.deleteApp(a.id, token)
       await load()
     } catch (e) {
       setError(e.message)
     }
+  }
+
+  // 未登录：显示令牌输入门
+  if (!token) {
+    return (
+      <div className="page">
+        <div className="center-card">
+          <div className="card">
+            <h2>🔐 管理后台登录</h2>
+            <p className="hint">请输入管理员访问令牌</p>
+            <input
+              className="field"
+              type="password"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              onKeyDown={(e) => e.key === 'Enter' && login()}
+              placeholder="访问令牌"
+              autoFocus
+            />
+            {authError && <div className="error-banner">{authError}</div>}
+            <button className="btn btn-primary" style={{ width: '100%', marginTop: 20 }} onClick={login} disabled={!input.trim()}>
+              进入后台
+            </button>
+          </div>
+        </div>
+      </div>
+    )
   }
 
   const publishedCount = apps.filter((a) => a.published).length
@@ -58,7 +106,7 @@ export default function Admin() {
         <div className="page-head">
           <h2>🛠 管理后台</h2>
           <div style={{ display: 'flex', gap: 10 }}>
-            <button className="btn btn-ghost" onClick={load} disabled={loading}>↻ 刷新</button>
+            <button className="btn btn-ghost" onClick={() => load()} disabled={loading}>↻ 刷新</button>
             <Link to="/" className="btn btn-ghost">← 返回首页</Link>
           </div>
         </div>
