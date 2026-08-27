@@ -8,6 +8,7 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
   const [thinkingOpen, setThinkingOpen] = useState(true)
   const [activeAgent, setActiveAgent] = useState('engineer')
   const [agentMenu, setAgentMenu] = useState(false)
+  const [planDraft, setPlanDraft] = useState('')
   const activeInfo = getAgent(activeAgent)
   const listRef = useRef(null)
   const taRef = useRef(null)
@@ -21,6 +22,11 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
   useEffect(() => {
     if (thinkingRef.current) thinkingRef.current.scrollTop = thinkingRef.current.scrollHeight
   }, [thinkingText])
+
+  // 计划生成后，同步到可编辑草稿
+  useEffect(() => {
+    if (plan) setPlanDraft(plan.plan)
+  }, [plan])
 
   function submit() {
     const v = input.trim()
@@ -105,10 +111,15 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
 
         {plan && !building && (
           <div className="plan-card">
-            <div className="plan-card-head">📋 {plan.title || '团队开发计划'}</div>
-            <div className="plan-card-body">{plan.plan}</div>
+            <div className="plan-card-head">📋 {plan.title || '团队开发计划'} <span className="plan-edit-hint">（可编辑，改后确认）</span></div>
+            <textarea
+              className="plan-edit"
+              value={planDraft}
+              onChange={(e) => setPlanDraft(e.target.value)}
+              rows={10}
+            />
             <div className="plan-card-actions">
-              <button className="btn btn-primary" onClick={onConfirmPlan}>✅ 确认开发</button>
+              <button className="btn btn-primary" onClick={() => onConfirmPlan(planDraft)}>✅ 确认开发</button>
             </div>
           </div>
         )}

@@ -1008,6 +1008,31 @@ button {
   margin-bottom: 8px;
 }
 
+.plan-edit-hint {
+  color: var(--text-dim);
+  font-weight: 400;
+  font-size: 12px;
+}
+
+.plan-edit {
+  width: 100%;
+  min-height: 160px;
+  background: var(--bg-2);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  color: var(--text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.6;
+  padding: 10px 12px;
+  resize: vertical;
+  outline: none;
+}
+
+.plan-edit:focus {
+  border-color: var(--accent);
+}
+
 .plan-card-body {
   font-size: 13px;
   color: var(--text-dim);

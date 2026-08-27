@@ -176,7 +176,7 @@ export default function Workspace() {
     }
   }
 
-  async function confirmBuild() {
+  async function confirmBuild(editedPlan) {
     if (!plan?.id || building) return
     setBuilding(true)
     setSteps([])
@@ -186,7 +186,7 @@ export default function Workspace() {
     abortRef.current = controller
     try {
       await api.teamBuild(
-        { appId: plan.id },
+        { appId: plan.id, plan: editedPlan || plan.plan },
         {
           step_start: (d) =>
             setSteps((s) => [...s, { seq: d.seq, agentId: d.agentId, agentName: d.agentName, task: d.task, status: 'running' }]),
