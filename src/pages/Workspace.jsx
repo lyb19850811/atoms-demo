@@ -198,7 +198,7 @@ export default function Workspace() {
         {
           thinking: (d) => setThinkingText((t) => t + d.text),
           done_plan: (d) => {
-            setPlan(d)
+            setPlan({ ...d, mode: 'team' })
             setApp({ id: d.id, title: d.title, mode: 'team', html: '' })
             setMessages((m) => [...m, { role: 'assistant', content: '团队计划已生成，请确认后开始开发。' }])
           },
