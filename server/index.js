@@ -11,6 +11,18 @@ const __dirname = path.dirname(fileURLToPath(import.meta.url))
 const app = express()
 app.use(express.json({ limit: '3mb' }))
 
+// 请求日志：便于排查网关/超时类问题（确认请求是否真正到达服务端）
+app.use((req, res, next) => {
+  const start = Date.now()
+  const pathname = req.path // 入口即捕获，避免 mounted 路由改写 req.url 后读错
+  res.on('finish', () => {
+    if (pathname.startsWith('/api')) {
+      console.log(`[${new Date().toISOString()}] ${req.method} ${pathname} -> ${res.statusCode} (${Date.now() - start}ms)`)
+    }
+  })
+  next()
+})
+
 app.get('/api/health', (req, res) => res.json({ ok: true, time: Date.now() }))
 app.use('/api/users', usersRouter)
 app.use('/api/apps', appsRouter)

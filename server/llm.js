@@ -48,20 +48,32 @@ export async function generateApp({ prompt, currentHtml }) {
     messages.push({ role: 'user', content: `请生成一个应用，需求：${prompt}` })
   }
 
-  const res = await fetch(`${BASE}/chat/completions`, {
-    method: 'POST',
-    headers: {
-      'Content-Type': 'application/json',
-      Authorization: `Bearer ${apiKey}`
-    },
-    body: JSON.stringify({
-      model: MODEL,
-      messages,
-      temperature: 0.5,
-      max_tokens: 8192,
-      response_format: { type: 'json_object' }
+  // 100s 超时保护，避免请求悬挂
+  const controller = new AbortController()
+  const timer = setTimeout(() => controller.abort(), 100000)
+  let res
+  try {
+    res = await fetch(`${BASE}/chat/completions`, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${apiKey}`
+      },
+      body: JSON.stringify({
+        model: MODEL,
+        messages,
+        temperature: 0.5,
+        max_tokens: 8192,
+        response_format: { type: 'json_object' }
+      }),
+      signal: controller.signal
     })
-  })
+  } catch (e) {
+    if (e.name === 'AbortError') throw new Error('生成超时，请重试')
+    throw new Error(`无法连接模型服务：${e.message}`)
+  } finally {
+    clearTimeout(timer)
+  }
 
   const data = await res.json().catch(() => ({}))
   if (!res.ok) {
