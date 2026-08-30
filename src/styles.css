@@ -870,11 +870,38 @@ button {
   min-height: 0;
   overflow: hidden;
   background: #fff;
+  display: flex;
+  flex-direction: column;
+}
+
+.pp-preview-toolbar {
+  display: flex;
+  gap: 6px;
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border, #eee);
+  background: var(--panel-1, #fafafa);
+}
+
+.pp-edit-btn {
+  border: 1px solid var(--border, #ddd);
+  background: #fff;
+  color: var(--text, #333);
+  border-radius: 6px;
+  padding: 4px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.pp-edit-btn.active {
+  background: #3b82f6;
+  color: #fff;
+  border-color: #3b82f6;
 }
 
 .pp-preview iframe {
   width: 100%;
-  height: 100%;
+  flex: 1;
+  min-height: 0;
   border: none;
 }
 

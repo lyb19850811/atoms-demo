@@ -118,3 +118,38 @@ test('管理后台：用户/应用列表 + 级联删除用户', async () => {
   const afterApps = await (await fetch(`${base}/api/admin/apps`)).json()
   assert.ok(!afterApps.some((a) => a.owner === '测试用户'))
 })
+
+test('应用数据持久化：写入 / 读取 / 覆盖 / 删除', async () => {
+  const appId = randomUUID()
+  const now = Date.now()
+  db.prepare(
+    'INSERT INTO apps (id, user_id, title, prompt, html, created_at, updated_at, published) VALUES (?, ?, ?, ?, ?, ?, ?, 0)'
+  ).run(appId, null, '数据应用', '做个数据应用', '<h1>hi</h1>', now, now)
+
+  // 写入
+  const put = await fetch(`${base}/api/apps/${appId}/data`, json('PUT', { key: 'todos', value: '["a","b"]' }))
+  assert.equal(put.status, 200)
+
+  // 读取单个
+  const get1 = await (await fetch(`${base}/api/apps/${appId}/data?key=todos`)).json()
+  assert.deepEqual(get1.data, { todos: '["a","b"]' })
+
+  // 覆盖
+  await fetch(`${base}/api/apps/${appId}/data`, json('PUT', { key: 'todos', value: '["a","b","c"]' }))
+  const get2 = await (await fetch(`${base}/api/apps/${appId}/data?key=todos`)).json()
+  assert.deepEqual(get2.data, { todos: '["a","b","c"]' })
+
+  // 读取全部
+  await fetch(`${base}/api/apps/${appId}/data`, json('PUT', { key: 'note', value: 'hello' }))
+  const all = await (await fetch(`${base}/api/apps/${appId}/data`)).json()
+  assert.deepEqual(all.data, { todos: '["a","b","c"]', note: 'hello' })
+
+  // 删除
+  await fetch(`${base}/api/apps/${appId}/data`, json('DELETE', { key: 'note' }))
+  const after = await (await fetch(`${base}/api/apps/${appId}/data`)).json()
+  assert.deepEqual(after.data, { todos: '["a","b","c"]' })
+
+  // 不存在的应用返回 404
+  const nf = await fetch(`${base}/api/apps/${randomUUID()}/data`, json('PUT', { key: 'x', value: 'y' }))
+  assert.equal(nf.status, 404)
+})

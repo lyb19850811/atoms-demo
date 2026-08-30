@@ -1,6 +1,6 @@
 import { test } from 'node:test'
 import assert from 'node:assert/strict'
-import { extractJson, parseResult } from '../server/llm.js'
+import { extractJson, parseResult, validateHtml } from '../server/llm.js'
 
 test('extractJson：解析直接 JSON', () => {
   const o = extractJson('{"title":"番茄钟","html":"<h1>hi</h1>"}')
@@ -42,4 +42,28 @@ test('parseResult：空内容返回空 html', () => {
 test('parseResult：非法 JSON 也能从文本中提取', () => {
   const r = parseResult('这不是JSON <html><body>hello</body></html>')
   assert.ok(r.html.includes('hello'))
+})
+
+test('validateHtml：完整可交互的 HTML 无问题', () => {
+  const html = '<!DOCTYPE html><html><head><style>body{color:red}</style></head><body><h1>hi</h1><script>document.querySelector("h1").onclick=()=>{};</script></body></html>'
+  assert.deepEqual(validateHtml(html), [])
+})
+
+test('validateHtml：识别外部资源与静态展示', () => {
+  const issues = validateHtml('<html><head><link rel="stylesheet" href="https://cdn.example.com/x.css"></head><body><p>hi</p></body></html>')
+  assert.ok(issues.some((x) => x.includes('外部 CSS')))
+  assert.ok(issues.some((x) => x.includes('缺少 <script>')))
+})
+
+test('validateHtml：识别 localStorage 与 fetch 违规', () => {
+  const html = '<html><body><script>localStorage.setItem("x", 1); fetch("/api")</script></body></html>'
+  const issues = validateHtml(html)
+  assert.ok(issues.some((x) => x.includes('localStorage')))
+  assert.ok(issues.some((x) => x.includes('网络请求')))
+})
+
+test('validateHtml：识别 script 语法错误', () => {
+  const html = '<html><body><script>function f( { return 1; }</script></body></html>'
+  const issues = validateHtml(html)
+  assert.ok(issues.some((x) => x.includes('语法错误')))
 })

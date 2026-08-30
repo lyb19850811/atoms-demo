@@ -1,6 +1,7 @@
 // LLM Provider 抽象层：目前对接 DeepSeek（流式），可通过环境变量切换 base/model
 const BASE = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
 const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash'
+const FALLBACK_MODEL = process.env.DEEPSEEK_FALLBACK_MODEL || 'deepseek-v4-flash'
 
 // 通用输出格式规则（单文件模式）
 const THINKING_HINT = `\n\n【思考要求】不要展开思考，直接列出你的产出要点清单，每条一句话，然后立即输出 JSON。`
@@ -9,7 +10,7 @@ const OUTPUT_RULES = `严格输出规则：
 1. 只输出一个 JSON 对象，格式为 {"title":"简短标题","html":"完整HTML代码字符串"}。不要输出任何其他文字、解释或 markdown 代码块标记。
 2. html 必须是完整自包含的单文件 HTML（包含 <!DOCTYPE html>），所有 CSS 写在 <style> 内，所有 JS 写在 <script> 内。
 3. 禁止引用任何外部资源：不要 <link>、<script src>、@import、外部图片/字体/CDN。图标用 emoji 或内联 SVG。
-4. 不要使用 localStorage/sessionStorage/cookie，也不要发网络请求（fetch/XMLHttpRequest），状态用内存变量即可。
+4. 禁止使用 localStorage/sessionStorage/cookie，也不要发网络请求（fetch/XMLHttpRequest）。若应用需要持久化数据（待办事项、笔记、用户设置、统计数据等），使用全局对象 AtomsData 的异步方法：await AtomsData.get(key) 读取（返回反序列化后的值，无则 undefined）、await AtomsData.set(key, value) 写入（value 可为对象/数组/字符串，自动序列化）、await AtomsData.remove(key) 删除、await AtomsData.all() 读取全部。这些方法返回 Promise，须在 async 函数中 await；数据会跨会话持久保存。
 5. 界面精美现代：合适的配色、留白、圆角、阴影、字体层级，桌面端和移动端都好看。
 
 当用户是「修改」需求时，我会在用户消息里提供当前内容的完整代码，请基于它做最小必要修改，保留未提及的原有部分，然后输出修改后的完整新代码。`
@@ -18,9 +19,20 @@ const OUTPUT_RULES = `严格输出规则：
 const AGENT_PROMPTS = {
   engineer: {
     name: '工程师',
-    system: `你是 Mini Atoms 的应用生成引擎，能把用户的一句话需求变成完整、可运行、真实可交互的单文件网页应用。
-- 应用必须真实可交互：有状态、有事件监听，能响应用户的点击/输入等操作，而不是纯静态展示。
-- 代码健壮，处理边界情况，避免运行时错误。
+    system: `你是 Mini Atoms 的应用生成引擎，角色是资深前端工程师。目标：把用户需求变成「真实可运行、交互正确、健壮美观」的单文件网页应用。
+
+【硬性约束】
+- COMPLETE CODE：输出完整可运行的代码，DON'T 留 TODO、占位符或省略号。
+- 交互必须真实可用：每个按钮、输入框都要有可用的逻辑，能响应用户操作，绝不写死。
+
+【交互正确性自查清单】输出代码前逐条核查：
+1. 输入类控件（计算器数字键、表单输入等）：用户连续点击/输入必须「拼接」而非「覆盖」——例如点击数字键要用 display += '3'，绝不能用 display = '3'，否则无法输入多位数。
+2. 计算器：正确处理运算符优先级、连续运算、小数、除零防护、清空与退格。
+3. 列表类（待办、历史记录）：增删改查逻辑完整，数据用 AtomsData 持久化，刷新后能恢复。
+4. 表单类：输入校验、空值处理、提交后的反馈。
+5. 状态更新后必须重新渲染界面，避免「点了没反应」。
+6. 代码健壮：处理空值、边界、异常，避免运行时错误。
+
 ${OUTPUT_RULES}`
   },
   pm: {
@@ -91,7 +103,7 @@ const TEAM_AGENTS = {
     system: `你是 Mini Atoms 的全栈工程师智能体。根据需求、PRD、架构方案，生成一个可运行的前端页面 + 后端代码骨架。
 严格输出一个 JSON 对象，格式：{"summary":"一句话摘要","entry":"frontend/index.html","files":[{"path":"...","content":"..."}, ...]}
 files 至少包含：
-- frontend/index.html：完整自包含的单文件 HTML（CSS 在 <style>、JS 在 <script>、禁止外部资源、真实可交互、可作为预览入口）
+- frontend/index.html：完整自包含的单文件 HTML（CSS 在 <style>、JS 在 <script>、禁止外部资源、真实可交互、可作为预览入口）。交互必须正确：输入类控件连续点击要「拼接」而非「覆盖」（如 display += '3'），计算器处理运算符优先级/小数/除零，列表类增删改查完整。
 - backend/main.py：FastAPI 应用骨架（含路由占位与数据模型）
 - backend/models.py：数据模型
 - requirements.txt
@@ -273,7 +285,7 @@ export async function* streamCompletion({ system, user }) {
     yield* rawStream(messages)
   } catch (e) {
     if (e instanceof VerboseReasoningError) {
-      yield* rawStream(messages, { model: 'deepseek-chat', maxReasoning: Infinity })
+      yield* rawStream(messages, { model: FALLBACK_MODEL, maxReasoning: Infinity })
     } else {
       throw e
     }
@@ -317,8 +329,8 @@ export async function* streamGenerate({ prompt, currentHtml, agent, plan }) {
     }
   } catch (e) {
     if (e instanceof VerboseReasoningError) {
-      // 回退到非推理模型（稳定）
-      for await (const c of rawStream(messages, { model: 'deepseek-chat', maxReasoning: Infinity })) {
+      // 回退到快速档模型（稳定）
+      for await (const c of rawStream(messages, { model: FALLBACK_MODEL, maxReasoning: Infinity })) {
         if (c.type === 'content') {
           content += c.text
           yield { type: 'writing', text: c.text }
@@ -334,4 +346,49 @@ export async function* streamGenerate({ prompt, currentHtml, agent, plan }) {
   if (!result.html) result = parseResult(reasoning)
   if (!result.html) throw new Error('模型未能生成有效内容，请重试')
   yield { type: 'done', title: result.title, html: result.html }
+}
+
+// 静态质量检查：生成 HTML 后识别常见缺陷（不执行代码，仅规则 + 语法检查）
+export function validateHtml(html) {
+  const issues = []
+  if (!html || !html.trim()) return ['HTML 内容为空']
+  if (!/<\/html>/i.test(html)) issues.push('缺少 </html> 闭合标签')
+  if (!/<script[\s>]/i.test(html)) issues.push('缺少 <script>：应用是纯静态展示，不符合「真实可交互」要求')
+  if (/<link[^>]+href\s*=\s*["']https?:\/\//i.test(html)) issues.push('引用了外部 CSS')
+  if (/<script[^>]+src\s*=\s*["']https?:\/\//i.test(html)) issues.push('引用了外部 JS')
+  if (/@import/i.test(html)) issues.push('使用了 @import 引入外部样式')
+  if (/url\(\s*["']?https?:\/\//i.test(html)) issues.push('引用了外部图片/资源')
+  if (/localStorage|sessionStorage|document\.cookie/i.test(html)) issues.push('使用了 localStorage/sessionStorage/cookie（沙箱禁止，应改用 AtomsData）')
+  if (/fetch\s*\(|XMLHttpRequest/i.test(html)) issues.push('使用了网络请求（沙箱禁止，应改用 AtomsData）')
+  const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).filter((s) => s.trim())
+  for (const s of scripts) {
+    try {
+      // eslint-disable-next-line no-new-func
+      new Function(s)
+    } catch (e) {
+      issues.push(`script 语法错误：${e.message}`)
+      break
+    }
+  }
+  return issues
+}
+
+// 质检修复：把问题列表喂回模型，返回修复后的 HTML
+export async function repairHtml(html, issues) {
+  const system = `你是 Mini Atoms 的质检修复智能体。生成的应用 HTML 存在若干问题，请修复后输出完整的新 HTML。
+严格输出一个 JSON 对象：{"html":"修复后的完整 HTML 代码字符串"}。不要输出任何其他文字或解释。
+修复要求：
+- 只修复列出的问题，保持原有功能与视觉风格不变。
+- 保持 HTML 完整自包含：无外部资源引用、CSS 在 <style> 内、JS 在 <script> 内。
+- 持久化数据使用 AtomsData（禁止 localStorage / fetch / XMLHttpRequest）。
+- 确保应用真实可交互。`
+  let content = ''
+  const user = `问题列表：\n${issues.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\n原始 HTML：\n\`\`\`html\n${html}\n\`\`\``
+  for await (const c of streamCompletion({ system, user })) {
+    if (c.type === 'content') content += c.text
+    else if (c.type === 'done') content = c.content
+  }
+  const obj = extractJson(content) || {}
+  const repaired = (obj.html && String(obj.html).trim()) || parseResult(content).html
+  return repaired || html
 }
