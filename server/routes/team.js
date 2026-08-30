@@ -38,8 +38,7 @@ router.post('/plan', async (req, res) => {
   let plan = ''
   try {
     for await (const ev of streamTeamPlan({ prompt })) {
-      if (ev.type === 'thinking') send('thinking', { text: ev.text })
-      else if (ev.type === 'done') {
+      if (ev.type === 'done') {
         title = ev.title
         plan = ev.plan
       }
@@ -76,8 +75,7 @@ router.post('/build', async (req, res) => {
     let entry = ''
     let files = []
     for await (const ev of streamTeamBuild({ appId, prompt, plan })) {
-      if (ev.type === 'thinking') send('thinking', { text: ev.text })
-      else if (ev.type === 'step_start') send('step_start', ev)
+      if (ev.type === 'step_start') send('step_start', ev)
       else if (ev.type === 'files') send('files', ev)
       else if (ev.type === 'step_done') send('step_done', ev)
       else if (ev.type === 'done') {

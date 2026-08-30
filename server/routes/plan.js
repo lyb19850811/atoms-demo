@@ -20,8 +20,7 @@ router.post('/', async (req, res) => {
   let plan = ''
   try {
     for await (const ev of streamPlan({ prompt })) {
-      if (ev.type === 'thinking') send('thinking', { text: ev.text })
-      else if (ev.type === 'done') {
+      if (ev.type === 'done') {
         title = ev.title
         plan = ev.plan
       }

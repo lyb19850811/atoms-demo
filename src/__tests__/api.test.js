@@ -15,24 +15,19 @@ function sseResponse(chunks) {
 afterEach(() => vi.unstubAllGlobals())
 
 describe('generateStream SSE 解析', () => {
-  it('正确解析 thinking / writing / done 事件', async () => {
+  it('正确解析 writing / done 事件', async () => {
     const payload =
-      'event: thinking\ndata: {"text":"功能"}\n\n' +
-      'event: thinking\ndata: {"text":"设计"}\n\n' +
       'event: writing\ndata: {"text":"{..."}\n\n' +
       'event: done\ndata: {"id":"a","title":"番茄钟","html":"<h1>x</h1>"}\n\n'
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue(sseResponse([payload])))
 
-    const thinkings = []
     let writingCount = 0
     let done = null
     await api.generateStream({ prompt: 'x' }, {
-      thinking: (d) => thinkings.push(d.text),
       writing: () => writingCount++,
       done: (d) => (done = d)
     })
 
-    expect(thinkings).toEqual(['功能', '设计'])
     expect(writingCount).toBe(1)
     expect(done.title).toBe('番茄钟')
     expect(done.html).toBe('<h1>x</h1>')

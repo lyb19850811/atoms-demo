@@ -5,7 +5,7 @@ import ChatPanel from '../components/ChatPanel.jsx'
 const baseProps = {
   messages: [],
   generating: false,
-  thinkingText: '',
+  thinkingAgent: '工程师',
   phase: null,
   samples: [],
   onSend: () => {}

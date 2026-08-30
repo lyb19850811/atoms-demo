@@ -247,7 +247,6 @@ async function* rawStream(messages, { model = MODEL, maxReasoning = 10000 } = {}
             if (reasoning.length > maxReasoning && content.length === 0) {
               throw new VerboseReasoningError()
             }
-            yield { type: 'thinking', text: delta.reasoning_content }
           }
           if (delta.content) {
             content += delta.content
@@ -299,8 +298,7 @@ plan 保持简洁（总长不超过 400 字），包含四部分，每部分 1-2
 4. 视觉风格：配色风格。`
   let content = ''
   for await (const c of streamCompletion({ system, user: `需求：${prompt}` })) {
-    if (c.type === 'thinking') yield { type: 'thinking', text: c.text }
-    else if (c.type === 'content') content += c.text
+    if (c.type === 'content') content += c.text
     else if (c.type === 'done') content = c.content
   }
   const obj = extractJson(content) || {}
@@ -316,10 +314,7 @@ export async function* streamGenerate({ prompt, currentHtml, agent, plan }) {
   let reasoning = ''
   try {
     for await (const c of rawStream(messages)) {
-      if (c.type === 'thinking') {
-        reasoning += c.text
-        yield { type: 'thinking', text: c.text }
-      } else if (c.type === 'content') {
+      if (c.type === 'content') {
         content += c.text
         yield { type: 'writing', text: c.text }
       } else if (c.type === 'done') {

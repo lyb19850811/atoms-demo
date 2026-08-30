@@ -29,13 +29,9 @@ router.post('/', async (req, res) => {
 
   let title = ''
   let html = ''
-  let thinking = ''
   try {
     for await (const chunk of streamGenerate({ prompt, currentHtml: app?.html || null, agent: req.body?.agent, plan: req.body?.plan })) {
-      if (chunk.type === 'thinking') {
-        thinking += chunk.text
-        send('thinking', { text: chunk.text })
-      } else if (chunk.type === 'writing') send('writing', { text: chunk.text })
+      if (chunk.type === 'writing') send('writing', { text: chunk.text })
       else if (chunk.type === 'done') {
         title = chunk.title
         html = chunk.html
@@ -78,7 +74,7 @@ router.post('/', async (req, res) => {
       'INSERT INTO messages (app_id, role, content, thinking, created_at) VALUES (?, ?, ?, ?, ?)'
     )
     insertMsg.run(id, 'user', prompt, null, now)
-    insertMsg.run(id, 'assistant', `已生成「${title}」`, thinking, now)
+    insertMsg.run(id, 'assistant', `已生成「${title}」`, null, now)
 
     send('done', { id, title, html, plan })
   } catch (e) {

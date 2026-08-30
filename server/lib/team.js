@@ -18,8 +18,7 @@ function kindOf(path) {
 async function* complete(system, user) {
   let content = ''
   for await (const c of streamCompletion({ system, user })) {
-    if (c.type === 'thinking') yield { type: 'thinking', text: c.text }
-    else if (c.type === 'content') content += c.text
+    if (c.type === 'content') content += c.text
     else if (c.type === 'done') content = c.content
   }
   yield { type: 'turn_done', content }
@@ -30,8 +29,7 @@ export async function* streamTeamPlan({ prompt }) {
   const leader = getTeamAgent('leader')
   let content = ''
   for await (const ev of complete(leader.system, `需求：${prompt}`)) {
-    if (ev.type === 'thinking') yield ev
-    else if (ev.type === 'turn_done') content = ev.content
+    if (ev.type === 'turn_done') content = ev.content
   }
   const obj = extractJson(content) || {}
   yield { type: 'done', title: obj.title || '我的项目', plan: obj.plan || content }
@@ -54,8 +52,7 @@ export async function* streamTeamBuild({ appId, prompt, plan }) {
 
     let content = ''
     for await (const ev of complete(def.system, user)) {
-      if (ev.type === 'thinking') yield ev
-      else if (ev.type === 'turn_done') content = ev.content
+      if (ev.type === 'turn_done') content = ev.content
     }
 
     const obj = extractJson(content) || {}

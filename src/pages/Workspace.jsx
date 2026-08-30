@@ -28,7 +28,7 @@ export default function Workspace() {
   const [published, setPublished] = useState(false)
   const [fireworks, setFireworks] = useState(false)
   const [publishDialog, setPublishDialog] = useState(null)
-  const [thinkingText, setThinkingText] = useState('')
+  const [thinkingAgent, setThinkingAgent] = useState(null)
   const [phase, setPhase] = useState(null) // 'thinking' | 'writing' | null
   const [showGuide, setShowGuide] = useState(false)
   const abortRef = useRef(null)
@@ -107,7 +107,7 @@ export default function Workspace() {
     setError('')
     setGenerating(true)
     setPhase('thinking')
-    setThinkingText('')
+    setThinkingAgent('规划智能体')
     setMessages((m) => [...m, { role: 'user', content: prompt }])
     setPlan(null)
     setFiles([])
@@ -118,7 +118,6 @@ export default function Workspace() {
       await api.plan(
         { prompt },
         {
-          thinking: (d) => setThinkingText((t) => t + d.text),
           done_plan: (d) => {
             setPlan({ mode: 'single', title: d.title, plan: d.plan, agent, prompt, appId: app?.id })
             setMessages((m) => [...m, { role: 'assistant', content: '开发计划已生成，请确认或编辑后开始开发。' }])
@@ -140,7 +139,7 @@ export default function Workspace() {
     } finally {
       setGenerating(false)
       setPhase(null)
-      setThinkingText('')
+      setThinkingAgent(null)
       abortRef.current = null
     }
   }
@@ -152,18 +151,13 @@ export default function Workspace() {
     setError('')
     setGenerating(true)
     setPhase('thinking')
-    setThinkingText('')
-    let thinkingAccum = ''
+    setThinkingAgent(getAgent(agent).role)
     const controller = new AbortController()
     abortRef.current = controller
     try {
       await api.generateStream(
         { appId, prompt, userId: user?.id, agent, plan: editedPlan },
         {
-          thinking: (d) => {
-            thinkingAccum += d.text
-            setThinkingText((t) => t + d.text)
-          },
           writing: () => setPhase('writing'),
           verifying: (d) => {
             setPhase('writing')
@@ -186,7 +180,7 @@ export default function Workspace() {
             setActiveTab('index.html')
             setMessages((m) => [
               ...m,
-              { role: 'assistant', content: `已由 ${agentName} 生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。`, thinking: thinkingAccum }
+              { role: 'assistant', content: `已由 ${agentName} 生成「${d.title}」，可在右侧预览。继续描述你的修改想法即可迭代。` }
             ])
           },
           error: (d) => {
@@ -206,7 +200,7 @@ export default function Workspace() {
     } finally {
       setGenerating(false)
       setPhase(null)
-      setThinkingText('')
+      setThinkingAgent(null)
       abortRef.current = null
     }
   }
@@ -244,7 +238,7 @@ export default function Workspace() {
     setError('')
     setGenerating(true)
     setPhase('thinking')
-    setThinkingText('')
+    setThinkingAgent('团队组长')
     setMessages((m) => [...m, { role: 'user', content: prompt }])
     setPlan(null)
     setSteps([])
@@ -257,7 +251,6 @@ export default function Workspace() {
       await api.teamPlan(
         { prompt, userId: user?.id },
         {
-          thinking: (d) => setThinkingText((t) => t + d.text),
           done_plan: (d) => {
             setPlan({ ...d, mode: 'team' })
             setApp({ id: d.id, title: d.title, mode: 'team', html: '' })
@@ -280,7 +273,7 @@ export default function Workspace() {
     } finally {
       setGenerating(false)
       setPhase(null)
-      setThinkingText('')
+      setThinkingAgent(null)
       abortRef.current = null
     }
   }
@@ -297,8 +290,10 @@ export default function Workspace() {
       await api.teamBuild(
         { appId: plan.id, plan: editedPlan || plan.plan },
         {
-          step_start: (d) =>
-            setSteps((s) => [...s, { seq: d.seq, agentId: d.agentId, agentName: d.agentName, task: d.task, status: 'running' }]),
+          step_start: (d) => {
+            setThinkingAgent(d.agentName)
+            setSteps((s) => [...s, { seq: d.seq, agentId: d.agentId, agentName: d.agentName, task: d.task, status: 'running' }])
+          },
           step_done: (d) => setSteps((s) => s.map((x) => (x.seq === d.seq ? { ...x, status: 'done' } : x))),
           done: (d) => {
             const fs = d.files || []
@@ -387,7 +382,7 @@ export default function Workspace() {
         <ChatPanel
           messages={messages}
           generating={generating || building}
-          thinkingText={thinkingText}
+          thinkingAgent={thinkingAgent}
           phase={phase}
           samples={SAMPLES}
           onSend={handleSend}

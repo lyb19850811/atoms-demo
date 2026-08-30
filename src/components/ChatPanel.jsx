@@ -3,23 +3,31 @@ import FeatureMenu from './FeatureMenu.jsx'
 import { getAgent } from '../data/agents.js'
 import { getTheme, toggleTheme } from '../theme.js'
 
-export default function ChatPanel({ messages, generating, thinkingText, phase, samples, onSend, onStop, teamMode, onToggleTeamMode, plan, steps = [], building, onConfirmPlan }) {
+export default function ChatPanel({ messages, generating, thinkingAgent, phase, samples, onSend, onStop, teamMode, onToggleTeamMode, plan, steps = [], building, onConfirmPlan }) {
   const [input, setInput] = useState('')
-  const [thinkingOpen, setThinkingOpen] = useState(true)
+  const [thinkingSeconds, setThinkingSeconds] = useState(0)
   const [planDraft, setPlanDraft] = useState('')
   const [theme, setThemeState] = useState(getTheme())
   const listRef = useRef(null)
   const taRef = useRef(null)
-  const thinkingRef = useRef(null)
 
   useEffect(() => {
     listRef.current?.scrollTo({ top: listRef.current.scrollHeight, behavior: 'smooth' })
-  }, [messages, generating, thinkingText])
+  }, [messages, generating])
 
-  // 思考内容流式增长时，自动滚到底部
+  // 思考阶段计时器：显示"谁在思考中 + 已用时"
   useEffect(() => {
-    if (thinkingRef.current) thinkingRef.current.scrollTop = thinkingRef.current.scrollHeight
-  }, [thinkingText])
+    if (phase !== 'thinking') {
+      setThinkingSeconds(0)
+      return
+    }
+    setThinkingSeconds(0)
+    const start = Date.now()
+    const id = setInterval(() => {
+      setThinkingSeconds(Math.floor((Date.now() - start) / 1000))
+    }, 250)
+    return () => clearInterval(id)
+  }, [phase])
 
   // 计划生成后，同步到可编辑草稿
   useEffect(() => {
@@ -73,17 +81,12 @@ export default function ChatPanel({ messages, generating, thinkingText, phase, s
 
         {generating && phase === 'thinking' && (
           <div className="thinking-box">
-            <div className="thinking-head" onClick={() => setThinkingOpen((v) => !v)}>
-              <span>🧠 思考过程</span>
+            <div className="thinking-head">
               <span className="thinking-spinner" />
+              <span>🧠 {thinkingAgent || '智能体'} 正在思考中…</span>
               <span className="ws-spacer" />
-              <span className="thinking-toggle">{thinkingOpen ? '收起' : '展开'}</span>
+              <span className="thinking-elapsed">{thinkingSeconds}s</span>
             </div>
-            {thinkingOpen && (
-              <div className="thinking-body" ref={thinkingRef}>
-                {thinkingText || '…'}
-              </div>
-            )}
           </div>
         )}
 
