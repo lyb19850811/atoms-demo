@@ -162,7 +162,7 @@ npm start             # Express 同时托管 dist/ 与 /api
 ./deploy.sh           # 测试 → 构建 → 上传 → pm2 重启 → 健康检查
 ```
 
-> 脚本默认使用 SSH 别名 `aliyun-ecs`（`~/.ssh/config`），部署目录 `/opt/atoms-demo`；按需修改脚本顶部配置。
+> 脚本默认使用 SSH 别名 `aliyun-ecs`（`~/.ssh/config`），部署目录 `/opt/atoms-demo-improve`、pm2 名 `atoms-demo-improve`、端口 `8083`，与 main 分支（`/opt/atoms-demo` + `atoms-demo` + `8082`）完全隔离；按需修改脚本顶部配置。
 
 ## 部署到阿里云 ECS（已实践）
 
@@ -173,13 +173,13 @@ scp src.tar.gz root@<IP>:/tmp/
 
 # 2. 服务器上解压并安装（国内用 npmmirror 镜像）
 ssh root@<IP>
-mkdir -p /opt/atoms-demo && tar -xzf /tmp/src.tar.gz -C /opt/atoms-demo
-cd /opt/atoms-demo
+mkdir -p /opt/atoms-demo-improve && tar -xzf /tmp/src.tar.gz -C /opt/atoms-demo-improve
+cd /opt/atoms-demo-improve
 npm install --registry=https://registry.npmmirror.com
 npm run build
 
 # 3. pm2 守护启动（读取 .env 的 PORT）
-pm2 start server/index.js --name atoms-demo
+pm2 start server/index.js --name atoms-demo-improve
 pm2 save            # 保存进程列表
 pm2 startup         # 可选：开机自启
 
@@ -193,7 +193,7 @@ pm2 startup         # 可选：开机自启
 | `DEEPSEEK_API_KEY` | DeepSeek API Key（必填） | — |
 | `DEEPSEEK_BASE_URL` | API 地址 | `https://api.deepseek.com` |
 | `DEEPSEEK_MODEL` | 生成模型 | `deepseek-v4-flash` |
-| `PORT` | 服务端口 | `8082` |
+| `PORT` | 服务端口 | `8083` |
 | `ADMIN_TOKEN` | 管理后台访问令牌 | — |
 | `DATA_DIR` | SQLite 数据目录（测试隔离用） | `./data` |
 
