@@ -1,6 +1,7 @@
 // LLM Provider 抽象层：目前对接 DeepSeek（流式），可通过环境变量切换 base/model
 const BASE = process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com'
 const MODEL = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash'
+const FALLBACK_MODEL = process.env.DEEPSEEK_FALLBACK_MODEL || 'deepseek-v4-flash'
 
 // 通用输出格式规则（单文件模式）
 const THINKING_HINT = `\n\n【思考要求】不要展开思考，直接列出你的产出要点清单，每条一句话，然后立即输出 JSON。`
@@ -284,7 +285,7 @@ export async function* streamCompletion({ system, user }) {
     yield* rawStream(messages)
   } catch (e) {
     if (e instanceof VerboseReasoningError) {
-      yield* rawStream(messages, { model: 'deepseek-chat', maxReasoning: Infinity })
+      yield* rawStream(messages, { model: FALLBACK_MODEL, maxReasoning: Infinity })
     } else {
       throw e
     }
@@ -328,8 +329,8 @@ export async function* streamGenerate({ prompt, currentHtml, agent, plan }) {
     }
   } catch (e) {
     if (e instanceof VerboseReasoningError) {
-      // 回退到非推理模型（稳定）
-      for await (const c of rawStream(messages, { model: 'deepseek-chat', maxReasoning: Infinity })) {
+      // 回退到快速档模型（稳定）
+      for await (const c of rawStream(messages, { model: FALLBACK_MODEL, maxReasoning: Infinity })) {
         if (c.type === 'content') {
           content += c.text
           yield { type: 'writing', text: c.text }
