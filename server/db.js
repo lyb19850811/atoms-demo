@@ -69,6 +69,14 @@ CREATE TABLE IF NOT EXISTS messages (
   created_at INTEGER NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_messages_app ON messages(app_id);
+
+CREATE TABLE IF NOT EXISTS app_data (
+  app_id     TEXT NOT NULL,
+  key        TEXT NOT NULL,
+  value      TEXT NOT NULL,
+  updated_at INTEGER NOT NULL,
+  PRIMARY KEY (app_id, key)
+);
 `)
 
 // 迁移：为旧库的 apps 表补充列

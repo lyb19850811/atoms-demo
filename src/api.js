@@ -63,7 +63,8 @@ export const api = {
   adminUsers: (token) => request('/api/admin/users', { headers: { 'X-Admin-Token': token } }),
   adminApps: (token) => request('/api/admin/apps', { headers: { 'X-Admin-Token': token } }),
   deleteUser: (id, token) => request(`/api/admin/users/${id}`, { method: 'DELETE', headers: { 'X-Admin-Token': token } }),
-  deleteApp: (id, token) => request(`/api/admin/apps/${id}`, { method: 'DELETE', headers: { 'X-Admin-Token': token } })
+  deleteApp: (id, token) => request(`/api/admin/apps/${id}`, { method: 'DELETE', headers: { 'X-Admin-Token': token } }),
+  updateHtml: (id, html) => request(`/api/apps/${id}/html`, { method: 'PUT', body: { html } })
 }
 
 // 分享链接：HashRouter 下用 #/app/:id，任何环境（IP:端口）都可用

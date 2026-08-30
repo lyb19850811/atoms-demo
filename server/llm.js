@@ -9,7 +9,7 @@ const OUTPUT_RULES = `严格输出规则：
 1. 只输出一个 JSON 对象，格式为 {"title":"简短标题","html":"完整HTML代码字符串"}。不要输出任何其他文字、解释或 markdown 代码块标记。
 2. html 必须是完整自包含的单文件 HTML（包含 <!DOCTYPE html>），所有 CSS 写在 <style> 内，所有 JS 写在 <script> 内。
 3. 禁止引用任何外部资源：不要 <link>、<script src>、@import、外部图片/字体/CDN。图标用 emoji 或内联 SVG。
-4. 不要使用 localStorage/sessionStorage/cookie，也不要发网络请求（fetch/XMLHttpRequest），状态用内存变量即可。
+4. 禁止使用 localStorage/sessionStorage/cookie，也不要发网络请求（fetch/XMLHttpRequest）。若应用需要持久化数据（待办事项、笔记、用户设置、统计数据等），使用全局对象 AtomsData 的异步方法：await AtomsData.get(key) 读取（返回反序列化后的值，无则 undefined）、await AtomsData.set(key, value) 写入（value 可为对象/数组/字符串，自动序列化）、await AtomsData.remove(key) 删除、await AtomsData.all() 读取全部。这些方法返回 Promise，须在 async 函数中 await；数据会跨会话持久保存。
 5. 界面精美现代：合适的配色、留白、圆角、阴影、字体层级，桌面端和移动端都好看。
 
 当用户是「修改」需求时，我会在用户消息里提供当前内容的完整代码，请基于它做最小必要修改，保留未提及的原有部分，然后输出修改后的完整新代码。`
@@ -334,4 +334,49 @@ export async function* streamGenerate({ prompt, currentHtml, agent, plan }) {
   if (!result.html) result = parseResult(reasoning)
   if (!result.html) throw new Error('模型未能生成有效内容，请重试')
   yield { type: 'done', title: result.title, html: result.html }
+}
+
+// 静态质量检查：生成 HTML 后识别常见缺陷（不执行代码，仅规则 + 语法检查）
+export function validateHtml(html) {
+  const issues = []
+  if (!html || !html.trim()) return ['HTML 内容为空']
+  if (!/<\/html>/i.test(html)) issues.push('缺少 </html> 闭合标签')
+  if (!/<script[\s>]/i.test(html)) issues.push('缺少 <script>：应用是纯静态展示，不符合「真实可交互」要求')
+  if (/<link[^>]+href\s*=\s*["']https?:\/\//i.test(html)) issues.push('引用了外部 CSS')
+  if (/<script[^>]+src\s*=\s*["']https?:\/\//i.test(html)) issues.push('引用了外部 JS')
+  if (/@import/i.test(html)) issues.push('使用了 @import 引入外部样式')
+  if (/url\(\s*["']?https?:\/\//i.test(html)) issues.push('引用了外部图片/资源')
+  if (/localStorage|sessionStorage|document\.cookie/i.test(html)) issues.push('使用了 localStorage/sessionStorage/cookie（沙箱禁止，应改用 AtomsData）')
+  if (/fetch\s*\(|XMLHttpRequest/i.test(html)) issues.push('使用了网络请求（沙箱禁止，应改用 AtomsData）')
+  const scripts = [...html.matchAll(/<script[^>]*>([\s\S]*?)<\/script>/gi)].map((m) => m[1]).filter((s) => s.trim())
+  for (const s of scripts) {
+    try {
+      // eslint-disable-next-line no-new-func
+      new Function(s)
+    } catch (e) {
+      issues.push(`script 语法错误：${e.message}`)
+      break
+    }
+  }
+  return issues
+}
+
+// 质检修复：把问题列表喂回模型，返回修复后的 HTML
+export async function repairHtml(html, issues) {
+  const system = `你是 Mini Atoms 的质检修复智能体。生成的应用 HTML 存在若干问题，请修复后输出完整的新 HTML。
+严格输出一个 JSON 对象：{"html":"修复后的完整 HTML 代码字符串"}。不要输出任何其他文字或解释。
+修复要求：
+- 只修复列出的问题，保持原有功能与视觉风格不变。
+- 保持 HTML 完整自包含：无外部资源引用、CSS 在 <style> 内、JS 在 <script> 内。
+- 持久化数据使用 AtomsData（禁止 localStorage / fetch / XMLHttpRequest）。
+- 确保应用真实可交互。`
+  let content = ''
+  const user = `问题列表：\n${issues.map((x, i) => `${i + 1}. ${x}`).join('\n')}\n\n原始 HTML：\n\`\`\`html\n${html}\n\`\`\``
+  for await (const c of streamCompletion({ system, user })) {
+    if (c.type === 'content') content += c.text
+    else if (c.type === 'done') content = c.content
+  }
+  const obj = extractJson(content) || {}
+  const repaired = (obj.html && String(obj.html).trim()) || parseResult(content).html
+  return repaired || html
 }

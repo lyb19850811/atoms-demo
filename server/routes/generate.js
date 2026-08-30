@@ -1,7 +1,7 @@
 import { Router } from 'express'
 import crypto from 'node:crypto'
 import db from '../db.js'
-import { streamGenerate } from '../llm.js'
+import { streamGenerate, validateHtml, repairHtml } from '../llm.js'
 
 const router = Router()
 
@@ -42,6 +42,24 @@ router.post('/', async (req, res) => {
       }
     }
 
+    // 自动验证 + 修复闭环：发现缺陷时自动喂回模型修复（最多 2 轮）
+    let issues = validateHtml(html)
+    let fixed = false
+    for (let round = 0; issues.length > 0 && round < 2; round++) {
+      send('verifying', { issues })
+      try {
+        const repaired = await repairHtml(html, issues)
+        if (repaired && repaired !== html) {
+          html = repaired
+          fixed = true
+        }
+        issues = validateHtml(html)
+      } catch (e) {
+        console.error('[generate] repair failed:', e.message)
+        break
+      }
+    }
+    if (fixed) send('verified', { issues })
     // 持久化（含单文件模式的开发计划）
     const now = Date.now()
     const plan = req.body?.plan || null

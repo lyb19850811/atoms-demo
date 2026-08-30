@@ -165,6 +165,17 @@ export default function Workspace() {
             setThinkingText((t) => t + d.text)
           },
           writing: () => setPhase('writing'),
+          verifying: (d) => {
+            setPhase('writing')
+            setMessages((m) => [...m, { role: 'assistant', content: `🔍 自动质检发现 ${d.issues.length} 个问题，正在修复…` }])
+          },
+          verified: (d) => {
+            setMessages((m) =>
+              d.issues?.length
+                ? [...m, { role: 'assistant', content: `⚠️ 修复后仍有 ${d.issues.length} 个问题` }]
+                : [...m, { role: 'assistant', content: '✅ 自动修复完成' }]
+            )
+          },
           done: (d) => {
             setApp(d)
             if (!appId) setPublished(false)
@@ -208,6 +219,24 @@ export default function Workspace() {
 
   function stopGeneration() {
     abortRef.current?.abort()
+  }
+
+  // 可视化编辑回写：更新本地状态并持久化产物 HTML
+  async function handleHtmlChange(html) {
+    if (!app?.id) return
+    if (files.length > 0 && entry) {
+      setFiles((fs) => fs.map((f) => (f.path === entry ? { ...f, content: html } : f)))
+      setOpenTabs((ts) => ts.map((t) => (t.path === entry ? { ...t, content: html } : t)))
+    } else {
+      setApp((a) => ({ ...a, html }))
+      setOpenTabs((ts) => ts.map((t) => (t.path === 'index.html' ? { ...t, content: html } : t)))
+    }
+    try {
+      await api.updateHtml(app.id, html)
+      flashToast('已保存编辑')
+    } catch (e) {
+      setError(e.message)
+    }
   }
 
   async function handleTeamSend(prompt) {
@@ -378,6 +407,8 @@ export default function Workspace() {
           activePath={activeTab}
           onActivate={setActiveTab}
           onClose={closeTab}
+          appId={app?.id}
+          onHtmlChange={handleHtmlChange}
         />
         <ArtifactsPanel
           files={artifactFiles}

@@ -83,4 +83,69 @@ router.post('/:id/publish', (req, res) => {
   res.json({ published: published === 1, url: `/p/${app.id}` })
 })
 
+// 应用数据持久化：key-value 存储，供生成的应用通过 AtomsData 桥读写
+const DATA_LIMITS = { keyLen: 64, valueLen: 65536, maxItems: 500 }
+
+function getDataApp(req, res) {
+  const app = db.prepare('SELECT id FROM apps WHERE id = ?').get(req.params.id)
+  if (!app) res.status(404).json({ error: '应用不存在' })
+  return app || null
+}
+
+router.get('/:id/data', (req, res) => {
+  const app = getDataApp(req, res)
+  if (!app) return
+  const { key } = req.query
+  if (key) {
+    const row = db.prepare('SELECT key, value FROM app_data WHERE app_id = ? AND key = ?').get(app.id, String(key))
+    return res.json({ data: row ? { [row.key]: row.value } : {} })
+  }
+  const rows = db.prepare('SELECT key, value FROM app_data WHERE app_id = ?').all(app.id)
+  const data = {}
+  for (const r of rows) data[r.key] = r.value
+  res.json({ data })
+})
+
+router.put('/:id/data', (req, res) => {
+  const app = getDataApp(req, res)
+  if (!app) return
+  const key = String(req.body?.key ?? '')
+  const value = String(req.body?.value ?? '')
+  if (!key) return res.status(400).json({ error: '缺少 key' })
+  if (key.length > DATA_LIMITS.keyLen) return res.status(400).json({ error: 'key 过长' })
+  if (value.length > DATA_LIMITS.valueLen) return res.status(400).json({ error: 'value 过大' })
+  const count = db.prepare('SELECT COUNT(*) AS n FROM app_data WHERE app_id = ?').get(app.id).n
+  const exists = db.prepare('SELECT 1 FROM app_data WHERE app_id = ? AND key = ?').get(app.id, key)
+  if (!exists && count >= DATA_LIMITS.maxItems) return res.status(400).json({ error: '数据条目已达上限' })
+  db.prepare(
+    'INSERT INTO app_data (app_id, key, value, updated_at) VALUES (?, ?, ?, ?) ON CONFLICT(app_id, key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at'
+  ).run(app.id, key, value, Date.now())
+  res.json({ ok: true })
+})
+
+router.delete('/:id/data', (req, res) => {
+  const app = getDataApp(req, res)
+  if (!app) return
+  const key = String(req.body?.key ?? req.query?.key ?? '')
+  if (!key) return res.status(400).json({ error: '缺少 key' })
+  db.prepare('DELETE FROM app_data WHERE app_id = ? AND key = ?').run(app.id, key)
+  res.json({ ok: true })
+})
+
+// 更新产物 HTML（可视化编辑回写）：单文件模式更新 html 字段，团队模式更新入口文件
+router.put('/:id/html', (req, res) => {
+  const app = db.prepare('SELECT id, mode, entry FROM apps WHERE id = ?').get(req.params.id)
+  if (!app) return res.status(404).json({ error: '应用不存在' })
+  const html = String(req.body?.html ?? '')
+  if (!html) return res.status(400).json({ error: '缺少 html' })
+  if (html.length > 3 * 1024 * 1024) return res.status(400).json({ error: 'HTML 过大' })
+  const now = Date.now()
+  if (app.mode === 'team' && app.entry) {
+    db.prepare('UPDATE files SET content = ?, updated_at = ? WHERE app_id = ? AND path = ?').run(html, now, app.id, app.entry)
+  } else {
+    db.prepare('UPDATE apps SET html = ?, updated_at = ? WHERE id = ?').run(html, now, app.id)
+  }
+  res.json({ ok: true })
+})
+
 export default router
