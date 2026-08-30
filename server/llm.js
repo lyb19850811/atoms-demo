@@ -19,19 +19,17 @@ const OUTPUT_RULES = `严格输出规则：
 const AGENT_PROMPTS = {
   engineer: {
     name: '工程师',
-    system: `你是 Mini Atoms 的应用生成引擎，角色是资深前端工程师。目标：把用户需求变成「真实可运行、交互正确、健壮美观」的单文件网页应用。
+    system: `你是 Mini Atoms 的应用生成引擎，角色是资深工程师。目标：写出正确、完整、健壮、可维护的代码。
 
 【硬性约束】
 - COMPLETE CODE：输出完整可运行的代码，DON'T 留 TODO、占位符或省略号。
-- 交互必须真实可用：每个按钮、输入框都要有可用的逻辑，能响应用户操作，绝不写死。
+- 代码正确可运行：逻辑正确，处理空值、边界、异常，避免运行时错误。
+- 交互真实可用：每个按钮、输入框都要有可用的逻辑，能响应用户操作，状态更新后重新渲染界面。
 
-【交互正确性自查清单】输出代码前逐条核查：
-1. 输入类控件（计算器数字键、表单输入等）：用户连续点击/输入必须「拼接」而非「覆盖」——例如点击数字键要用 display += '3'，绝不能用 display = '3'，否则无法输入多位数。
-2. 计算器：正确处理运算符优先级、连续运算、小数、除零防护、清空与退格。
-3. 列表类（待办、历史记录）：增删改查逻辑完整，数据用 AtomsData 持久化，刷新后能恢复。
-4. 表单类：输入校验、空值处理、提交后的反馈。
-5. 状态更新后必须重新渲染界面，避免「点了没反应」。
-6. 代码健壮：处理空值、边界、异常，避免运行时错误。
+【交互正确性】输出前逐条核查：
+- 输入类控件：连续点击/输入必须「拼接」而非「覆盖」（例如数字键用 display += '3'，绝不用 display = '3'，否则无法输入多位数）。
+- 运算类：正确处理运算符优先级、连续运算、小数、除零防护。
+- 列表/数据类：增删改查逻辑完整，数据用 AtomsData 持久化，刷新后能恢复。
 
 ${OUTPUT_RULES}`
   },
@@ -103,7 +101,7 @@ const TEAM_AGENTS = {
     system: `你是 Mini Atoms 的全栈工程师智能体。根据需求、PRD、架构方案，生成一个可运行的前端页面 + 后端代码骨架。
 严格输出一个 JSON 对象，格式：{"summary":"一句话摘要","entry":"frontend/index.html","files":[{"path":"...","content":"..."}, ...]}
 files 至少包含：
-- frontend/index.html：完整自包含的单文件 HTML（CSS 在 <style>、JS 在 <script>、禁止外部资源、真实可交互、可作为预览入口）。交互必须正确：输入类控件连续点击要「拼接」而非「覆盖」（如 display += '3'），计算器处理运算符优先级/小数/除零，列表类增删改查完整。
+- frontend/index.html：完整自包含的单文件 HTML（CSS 在 <style>、JS 在 <script>、禁止外部资源、真实可交互、可作为预览入口）。交互逻辑严格遵循 PRD 与架构方案中的定义。
 - backend/main.py：FastAPI 应用骨架（含路由占位与数据模型）
 - backend/models.py：数据模型
 - requirements.txt
@@ -127,9 +125,7 @@ function buildSingleMessages(agentDef, prompt, currentHtml, plan) {
       content: `这是我当前内容的完整代码：\n\`\`\`html\n${currentHtml}\n\`\`\`\n\n用户的新需求：${prompt}\n请基于上面的代码做最小必要修改，输出修改后的完整新代码（JSON 格式）。`
     })
   } else {
-    let user = `任务：${prompt}`
-    if (plan) user += `\n\n已确认的开发计划：\n${plan}\n请严格按此计划实现。`
-    messages.push({ role: 'user', content: user })
+    messages.push({ role: 'user', content: `任务：${prompt}` })
   }
   return messages
 }
@@ -189,7 +185,7 @@ class VerboseReasoningError extends Error {
 
 // 底层流式调用：逐块产出 thinking/content，结束产出 done { content, reasoning }
 // opts.model：模型名；opts.maxReasoning：推理长度阈值，超过且无内容则抛 VerboseReasoningError
-async function* rawStream(messages, { model = MODEL, maxReasoning = 3000 } = {}) {
+async function* rawStream(messages, { model = MODEL, maxReasoning = 10000 } = {}) {
   const apiKey = process.env.DEEPSEEK_API_KEY
   if (!apiKey) throw new Error('服务端未配置 DEEPSEEK_API_KEY')
 
@@ -205,7 +201,7 @@ async function* rawStream(messages, { model = MODEL, maxReasoning = 3000 } = {})
         messages,
         stream: true,
         temperature: 0,
-        max_tokens: 16384,
+        max_tokens: 32768,
         response_format: { type: 'json_object' }
       }),
       signal: controller.signal
@@ -294,9 +290,13 @@ export async function* streamCompletion({ system, user }) {
 
 // 规划智能体：为单文件应用生成一份简洁开发计划
 export async function* streamPlan({ prompt }) {
-  const system = `你是 Mini Atoms 的规划智能体。用户会描述一个应用需求，你输出一份简洁的开发计划。
+  const system = `你是 Mini Atoms 的规划智能体。用户会描述一个应用需求，你输出一份开发计划，供工程师据此实现。
 严格输出一个 JSON 对象：{"title":"简短应用名","plan":"markdown 计划"}
-plan 应包含四部分：功能设计、界面布局、交互逻辑、视觉风格，每部分一句话。`
+plan 保持简洁（总长不超过 400 字），包含四部分，每部分 1-2 句：
+1. 功能设计：应用做什么。
+2. 界面布局：主要区块。
+3. 交互逻辑：关键交互行为与边界（例如数字键要拼接输入多位数、列表要支持增删、除零要提示）。
+4. 视觉风格：配色风格。`
   let content = ''
   for await (const c of streamCompletion({ system, user: `需求：${prompt}` })) {
     if (c.type === 'thinking') yield { type: 'thinking', text: c.text }
