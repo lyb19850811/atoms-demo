@@ -291,10 +291,9 @@ export default function Workspace() {
         { appId: plan.id, plan: editedPlan || plan.plan },
         {
           step_start: (d) => {
-            setThinkingAgent(d.agentName)
-            setSteps((s) => [...s, { seq: d.seq, agentId: d.agentId, agentName: d.agentName, task: d.task, status: 'running' }])
+            setSteps((s) => [...s, { id: d.id, level: d.level ?? 0, agentId: d.agentId, agentName: d.agentName, task: d.task, status: 'running' }])
           },
-          step_done: (d) => setSteps((s) => s.map((x) => (x.seq === d.seq ? { ...x, status: 'done' } : x))),
+          step_done: (d) => setSteps((s) => s.map((x) => (x.id === d.id ? { ...x, status: 'done' } : x))),
           done: (d) => {
             const fs = d.files || []
             setFiles(fs)

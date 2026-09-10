@@ -2,6 +2,16 @@ import { useRef, useState, useEffect } from 'react'
 import FeatureMenu from './FeatureMenu.jsx'
 import { getAgent } from '../data/agents.js'
 import { getTheme, toggleTheme } from '../theme.js'
+// 按 level 分组：连续同 level 的步骤视为同一并行层（用于渲染「并行」标识）
+function groupSteps(steps) {
+  const groups = []
+  for (const s of steps) {
+    const last = groups[groups.length - 1]
+    if (last && last.level === s.level) last.items.push(s)
+    else groups.push({ level: s.level, items: [s] })
+  }
+  return groups
+}
 
 export default function ChatPanel({ messages, generating, thinkingAgent, phase, samples, onSend, onStop, teamMode, onToggleTeamMode, plan, steps = [], building, onConfirmPlan }) {
   const [input, setInput] = useState('')
@@ -115,11 +125,16 @@ export default function ChatPanel({ messages, generating, thinkingAgent, phase, 
         {steps.length > 0 && (
           <div className="steps-card">
             <div className="steps-card-head">🤝 团队协作</div>
-            {steps.map((s) => (
-              <div key={s.seq} className={`step-item ${s.status}`}>
-                <span className="step-agent">{getAgent(s.agentId).emoji} {s.agentName}</span>
-                <span className="step-task">{s.task}</span>
-                <span className="step-status">{s.status === 'done' ? '✓' : '…'}</span>
+            {groupSteps(steps).map((g) => (
+              <div key={g.level} className={`step-group${g.items.length > 1 ? ' parallel' : ''}`}>
+                {g.items.length > 1 && <div className="step-parallel-tag">⚡ 并行</div>}
+                {g.items.map((s) => (
+                  <div key={s.id} className={`step-item ${s.status}`}>
+                    <span className="step-agent">{getAgent(s.agentId).emoji} {s.agentName}</span>
+                    <span className="step-task">{s.task}</span>
+                    <span className="step-status">{s.status === 'done' ? '✓' : '…'}</span>
+                  </div>
+                ))}
               </div>
             ))}
           </div>
@@ -128,7 +143,7 @@ export default function ChatPanel({ messages, generating, thinkingAgent, phase, 
 
       <div className="chat-input">
         {teamMode && (
-          <div className="chat-team-note">🤝 团队模式：团队组长自动编排（产品经理 → 架构师 → 工程师）</div>
+          <div className="chat-team-note">🤝 团队模式：产品经理 → 架构师∥设计师（并行）→ 工程师</div>
         )}
         <textarea
           ref={taRef}

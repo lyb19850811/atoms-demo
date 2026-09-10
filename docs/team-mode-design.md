@@ -88,15 +88,15 @@ POST /api/team/build   body: { appId, confirmedPlan? }
     done       {title, entry, files:[...]}
 ```
 
-### 3.2 固定流水线（MVP，先不做自由函数调用 DAG）
+### 3.2 并行流水线（已实现：固定拓扑，层内并发）
 
-| seq | 智能体 | 任务 | 产出 |
+| 层 | 智能体 | 任务 | 产出 |
 |----|--------|------|------|
 | 1 | 产品经理 (pm) | 把需求整理成 PRD | `docs/requirements.md` |
-| 2 | 架构师 (architect) | 技术选型 + 模块 + 数据模型 | `docs/architecture.md` |
-| 3 | 工程师 (engineer) | 生成项目代码（前端可预览 + 后端结构） | `frontend/index.html`、`backend/*.py`、`README.md`、`requirements.txt` |
+| 2 | 架构师 (architect) ∥ 设计师 (designer) | 架构方案 ∥ UI 设计规范（并行） | `docs/architecture.md`、`docs/design.md` |
+| 3 | 工程师 (engineer) | 合并上游摘要，生成项目代码 | `frontend/index.html`、`backend/*.py`、`README.md`、`requirements.txt` |
 
-**为什么固定流水线**：完整的多智能体自由编排需要 function calling + 任务 DAG + 依赖解析，复杂度极高；固定 3 阶段接力已能体现「多智能体分工协作 + 规划确认」的本质，且可控、可测试。
+**为什么固定并行拓扑**：完整的多智能体自由编排需要 function calling + 任务 DAG + 依赖解析，复杂度极高；固定「pm → architect∥designer → engineer」并行流水线既体现「多智能体分工协作 + 层内并行」的本质，又可控、可测试（见 `server/lib/team.js` 的 `TEAM_PIPELINE`）。
 
 ### 3.3 智能体输出契约（约定协议）
 
@@ -180,7 +180,7 @@ idle ──提交──> planning ──Team Leader 输出计划──> awaiting
 |------|------|------|-----------|
 | P0 | 数据模型：`files`/`steps` 表 + apps 扩展 + 迁移 | 无 | 是 |
 | P1 | `/api/team/plan`：Team Leader 规划 + 计划确认 | P0 | 是 |
-| P2 | `/api/team/build`：三阶段流水线 + 写文件 | P1 | 是 |
+| P2 | `/api/team/build`：并行流水线（层内并发）+ 写文件 | P1 | 是 |
 | P3 | 前端三栏：FileTree + ProjectViewer + TeamPipeline | P2 | 是 |
 | P4 | 前端入口预览 + ArtifactViewer 多文件化 | P3 | 是 |
 | P5(可选) | function calling、跟随智能体、@自由编排 | P4 | 否 |

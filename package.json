@@ -10,7 +10,7 @@
     "dev:web": "vite",
     "build": "vite build",
     "start": "node server/index.js",
-    "test": "node --test test/api.test.js test/llm.test.js",
+    "test": "node --experimental-test-module-mocks --test test/api.test.js test/llm.test.js test/team.test.js",
     "test:web": "vitest run",
     "test:all": "npm test && npm run test:web"
   },

@@ -14,7 +14,7 @@
 - 🤖 **智能体驱动生成**：自然语言 → DeepSeek 生成完整应用；支持 **单文件模式**（自包含 HTML）与 **团队模式**（多智能体流水线产出多文件工程）
 - 🧠 **真实思考过程展示**：流式回传 `reasoning_content`，用户在界面上实时看到模型的思考，而非伪造的"正在生成"
 - 📝 **先规划后执行**：生成前先产出可编辑的「开发计划」，用户确认（可修改）后才进入实际生成
-- 👥 **团队模式（Team Mode）**：固定流水线 `产品经理 → 架构师 → 工程师` 协作，产出多文件项目（HTML/CSS/JS 等），每一步可见
+- 👥 **团队模式（Team Mode）**：并行流水线 `产品经理 → 架构师∥设计师 → 工程师` 协作，产出多文件项目（HTML/CSS/JS 等），每一步可见
 - 🖥️ **三栏工作台**：`对话 | 预览 | 产物`；中间栏「预览 / 代码」两层 Tab（代码 Tab 内再嵌文件标签页），产物栏为文件树（20% 宽、可折叠）
 - 💬 **对话式迭代**：基于上一版继续修改（改样式、加功能），保留未提及的原有功能
 - 🚀 **独立发布**：一键发布为独立 URL（`/p/:id`），像真实部署的产品页，任何人可直接体验
@@ -101,7 +101,7 @@ atoms-demo/
 │   ├── db.js                 # node:sqlite 初始化 + 迁移（users/apps/files/steps/messages）
 │   ├── llm.js                # DeepSeek 流式 provider + 输出解析 + 冗长推理看门狗
 │   ├── lib/
-│   │   ├── team.js           # 团队模式流水线（leader 规划 + pm→architect→engineer 构建）
+│   │   ├── team.js           # 团队模式并行流水线（leader 规划 + pm → [architect∥designer] → engineer 构建）
 │   │   └── zip.js            # 零依赖 ZIP 打包（node:zlib crc32）
 │   ├── middleware/
 │   │   └── rateLimit.js      # 滑动窗口限流（每实例独立）
@@ -205,7 +205,7 @@ pm2 startup         # 可选：开机自启
 | POST | `/api/plan` | 单文件模式规划（SSE），返回可编辑计划 |
 | POST | `/api/generate` | 单文件生成/迭代（SSE）：`{appId?, plan, prompt, userId?}` |
 | POST | `/api/team/plan` | 团队模式规划（SSE，leader 拆解任务） |
-| POST | `/api/team/build` | 团队模式构建（SSE，pm→architect→engineer 流水线） |
+| POST | `/api/team/build` | 团队模式构建（SSE，pm → [architect∥designer] → engineer 并行流水线） |
 | GET | `/api/apps?userId=` | 某用户的应用列表 |
 | GET | `/api/apps/:id` | 应用详情（含对话历史、步骤、文件） |
 | GET | `/api/apps/:id/html` | 生成应用的原始 HTML（分享页 iframe 加载） |
@@ -219,7 +219,7 @@ pm2 startup         # 可选：开机自启
 
 ## 关键设计取舍
 
-1. **生成「单文件 HTML」而非 React 工程（默认模式）**：避免服务端 `npm install` + 构建生成项目的高复杂度与高失败率；单文件 HTML 天然可交互、可分享、可在沙箱直接渲染。团队模式作为「扩展能力」，通过固定流水线产出多文件工程，兼顾工程思维与稳定性。
+1. **生成「单文件 HTML」而非 React 工程（默认模式）**：避免服务端 `npm install` + 构建生成项目的高复杂度与高失败率；单文件 HTML 天然可交互、可分享、可在沙箱直接渲染。团队模式作为「扩展能力」，通过并行流水线产出多文件工程，兼顾工程思维与稳定性。
 2. **先规划后执行**：生成前先产出可编辑计划并等待用户确认，符合真实 Atoms 的「需求澄清 → 确认 → 执行」交互，同时避免模型一次跑偏浪费 Token。
 3. **沙箱隔离安全**：`<iframe sandbox="allow-scripts allow-forms allow-modals">`（不含 `allow-same-origin`）隔离生成代码；系统提示词同时约束生成代码不使用 localStorage / 网络请求。
 4. **LLM Provider 抽象层**：`server/llm.js` 将模型调用与业务解耦，后续切换 Claude/OpenAI 只需改这一处。
@@ -229,7 +229,7 @@ pm2 startup         # 可选：开机自启
 
 ## 后续扩展方向（按优先级）
 
-1. **团队流水线自由编排 / function calling**：当前为固定 `pm→architect→engineer` 顺序，可演进为按任务类型动态编排、多智能体互相调用
+1. **团队流水线自由编排 / function calling**：当前为固定并行流水线 `pm → architect∥designer → engineer`，可演进为按任务类型动态编排、多智能体互相调用
 2. **应用模板 / 画廊**：预设模板 + 社区分享，降低冷启动成本，形成内容飞轮
 3. **真实账号 + 配额计费**：接入登录、按用户隔离的 Token 用量统计与计费
 4. **生成应用部署为独立静态站点**：发布物托管到 CDN/对象存储，而非当前同源直接渲染

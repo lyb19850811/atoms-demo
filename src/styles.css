@@ -1415,6 +1415,19 @@ button {
   font-weight: 600;
 }
 
+.step-group.parallel {
+  border-left: 3px solid #3b82f6;
+  padding-left: 8px;
+  margin: 4px 0;
+}
+
+.step-parallel-tag {
+  font-size: 11px;
+  color: #3b82f6;
+  font-weight: 600;
+  margin-bottom: 2px;
+}
+
 /* ---------- 项目查看器（文件树 + 编辑器/预览） ---------- */
 .project-viewer {
   display: flex;
