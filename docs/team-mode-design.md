@@ -2,6 +2,8 @@
 
 > 目标：把当前「单智能体生成单文件 HTML」升级为「多智能体团队协作生成完整项目」，
 > 对齐 Atoms 团队模式的体验（规划 → 确认 → 多智能体接力 → 项目文件树 + IDE 浏览）。
+>
+> 已实现版本（并行流水线）的原理与架构见 [`multi-agent-architecture.md`](./multi-agent-architecture.md)。
 
 ## 1. 现状与目标
 
