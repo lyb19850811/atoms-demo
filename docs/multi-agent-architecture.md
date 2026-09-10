@@ -176,7 +176,92 @@ extractJson 解析 → { summary, files, entry? }
 
 ---
 
-## 6. 数据模型
+## 6. 智能体实现与通信机制
+
+### 6.1 单个智能体如何实现
+
+每个执行智能体（pm/architect/designer/engineer）本质上是**一次独立的、无状态的 LLM 调用**：
+
+```
+独立 LLM 调用 = system prompt（角色人设 + 输出契约）+ user 消息（需求 + 计划 + 上游摘要）
+                 ↓ 流式补全（streamCompletion）
+        结构化 JSON 输出（{ summary, files[, entry] }）
+```
+
+- **system prompt** 定义在 `server/llm.js` 的 `TEAM_AGENTS`，写死该角色的职责与严格 JSON 输出格式，各角色互相独立。
+- **无状态**：每次调用不携带任何会话记忆，所有「协作所需信息」都由编排器显式注入到 user 消息里。
+- **独立上下文**：每个 agent 的输入只包含它需要的信息（需求 + 计划 + 它依赖的上游摘要），不共享其它 agent 的完整历史与思考。
+- **统一出口**：`extractJson` 把流式输出解析为结构化对象；`complete()` 只透传最终 `turn_done`，隔离流式细节。
+
+### 6.2 智能体之间如何通信
+
+当前实现中，**智能体之间不直接通信**，而是由**编排器（`streamTeamBuild`）作为唯一中介**，做**单向、沿依赖方向**的摘要传递：
+
+```mermaid
+sequenceDiagram
+    participant O as 编排器 streamTeamBuild
+    participant PM as 产品经理 pm
+    participant A as 架构师 architect
+    participant D as 设计师 designer
+    participant E as 工程师 engineer
+
+    O->>PM: user = 需求 + 计划
+    PM-->>O: {summary, files}
+    par 并行层（Promise.all）
+        O->>A: user = 需求 + 计划 + PM 摘要
+        A-->>O: {summary, files}
+    and
+        O->>D: user = 需求 + 计划 + PM 摘要
+        D-->>O: {summary, files}
+    end
+    O->>E: user = 需求 + 计划 + PM 摘要 + 架构摘要 + 设计摘要
+    E-->>O: {summary, entry, files}
+```
+
+通信的载体（按层次）：
+
+| 载体 | 机制 | 说明 |
+|------|------|------|
+| **JSON 输出契约** | 每个 agent 的 system prompt 强制输出严格 JSON | agent 只通过结构化字段「说话」，不自由发挥 |
+| **摘要传递（核心）** | 编排器把上游 `summary` 拼进下游 user 消息 | 只传一句话摘要、不传全文，控制上下文长度 |
+| **文件产物** | 每个 agent 的 `files` 写入 `files` 表 | 产物持久化供预览/导出；下游主要靠摘要，不直接读文件 |
+
+### 6.3 通信实现细节（代码路径）
+
+1. 编排器在内存维护 `summaries` 对象（`server/lib/team.js`），以步骤 id 为键：
+
+   ```js
+   const summaries = {}  // stepId -> summary
+   ```
+
+2. 每个 `runStep` 执行时，通过 `Object.values(summaries)` 读取**所有已完成上游**的摘要，拼进 user 消息：
+
+   ```js
+   const upstream = Object.values(summaries).filter(Boolean)
+   let user = `需求：${prompt}\n团队计划：\n${plan}`
+   if (upstream.length) user += `\n\n上游产出摘要：\n${upstream.join('\n')}`
+   ```
+
+3. 每层执行完成后，编排器把该层各步骤的 `summary` 写回：
+
+   ```js
+   summaries[r.id] = r.summary
+   ```
+
+4. **依赖保证**：因「层间串行」（下一层的 `Promise.all` 只有上一层 resolve 后才启动），下游读取 `summaries` 时，它依赖的上游摘要必定已写入，不会读到空值。
+
+### 6.4 明确的边界（当前没有的）
+
+- **无 function calling / tool call**：agent 不能主动调用别的 agent 或写文件，一切由编排器代劳。
+- **无 @mention / 自由编排**：拓扑固定，agent 不能决定调用谁。
+- **无共享记忆 / 白板**：agent 之间唯一的显式信息通道是编排器注入的摘要，无隐藏状态。
+- **无多轮内部对话**：每个 agent 只有一次 user 输入、一次 JSON 输出，不进行追问/澄清。
+
+> 这种「编排器 + 摘要传递」是 function calling 自由编排到来前，最可控、可测试的多智能体协作方式——通信协议被压缩成一条「摘要」，既保证下游有足够上下文，又避免 prompt 无限膨胀。
+
+---
+
+## 7. 数据模型
 
 沿用 `server/db.js` 的既有表，**并行流水线无需改 schema**：
 
@@ -192,9 +277,9 @@ extractJson 解析 → { summary, files, entry? }
 
 ---
 
-## 7. 两阶段 API 与 SSE 事件流
+## 8. 两阶段 API 与 SSE 事件流
 
-### 7.1 阶段一：Leader 规划
+### 8.1 阶段一：Leader 规划
 
 ```
 POST /api/team/plan   body: { prompt, userId?, appId? }
@@ -204,7 +289,7 @@ POST /api/team/plan   body: { prompt, userId?, appId? }
 
 SSE 事件：`done_plan { id, title, plan }`
 
-### 7.2 阶段二：并行构建
+### 8.2 阶段二：并行构建
 
 ```
 POST /api/team/build   body: { appId, plan? }
@@ -221,7 +306,7 @@ SSE 事件（顺序即层级推进）：
 | `step_done` | `{ id, level, agentId, summary }` | 某步骤完成 |
 | `done` | `{ entry, files }` | 全部完成，携带入口文件与全部产物 |
 
-### 7.3 事件时序（并行层）
+### 8.3 事件时序（并行层）
 
 ```
 step_start(pm)
@@ -237,7 +322,7 @@ done
 
 ---
 
-## 8. 前端渲染
+## 9. 前端渲染
 
 - **状态流**（`src/pages/Workspace.jsx` `confirmBuild`）：
   - `step_start` → 追加 `{ id, level, agentId, agentName, task, status:'running' }`
@@ -249,7 +334,7 @@ done
 
 ---
 
-## 9. 关键设计决策
+## 10. 关键设计决策
 
 1. **固定拓扑而非动态编排 DAG**：完整的多智能体自由编排需要 function calling + 任务 DAG + 依赖解析，复杂度高、收敛难；固定「pm → architect∥designer → engineer」并行流水线在「体现多智能体分工协作 + 层内并行」与「可控、可测试」之间取平衡。
 2. **摘要而非全文传递**：下游只拿上游 `summary`（一句话），控制上下文长度、避免 prompt 膨胀。
@@ -260,7 +345,7 @@ done
 
 ---
 
-## 10. 稳定性工程（Provider 抽象层）
+## 11. 稳定性工程（Provider 抽象层）
 
 `server/llm.js` 提供与业务解耦的 LLM 调用层：
 
@@ -271,7 +356,7 @@ done
 
 ---
 
-## 11. 扩展方向（按优先级）
+## 12. 扩展方向（按优先级）
 
 1. **Leader 动态编排 DAG**：把固定拓扑升级为 Leader 按需求动态生成任务依赖图，按依赖调度、支持任意并行分支与角色选择。
 2. **接入剩余角色**：`research`（深度研究）、`data`（数据分析）、`qa`（质检），并把 QA 做成自动验证修复闭环。
