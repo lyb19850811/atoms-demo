@@ -1,16 +1,16 @@
 #!/usr/bin/env bash
-# Mini Atoms 一键部署脚本（improve 分支独立部署：与 main 分支完全隔离）
+# Mini Atoms 一键部署脚本（multi-agent 分支独立部署：与 main/improve 分支完全隔离）
 set -euo pipefail
 
-# ===== 配置（improve 分支专用，勿与 main 分支混用）=====
-HOST="aliyun-ecs"                        # SSH 别名（~/.ssh/config）或 root@<IP>
-REMOTE_DIR="/opt/atoms-demo-improve"     # 独立部署目录（main 用 /opt/atoms-demo）
-PM2_APP="atoms-demo-improve"             # 独立 pm2 进程名（main 用 atoms-demo）
-PORT="8083"                              # 独立服务端口（main 用 8082）
+# ===== 配置（multi-agent 分支专用，勿与 main/improve 分支混用）=====
+HOST="aliyun-ecs"                         # SSH 别名（~/.ssh/config）或 root@<IP>
+REMOTE_DIR="/opt/atoms-demo-multi-agent"  # 独立部署目录（main 用 /opt/atoms-demo，improve 用 /opt/atoms-demo-improve）
+PM2_APP="atoms-demo-multi-agent"          # 独立 pm2 进程名
+PORT="8084"                               # 独立服务端口（8082/8083 已被占用）
 NPM_REGISTRY="https://registry.npmmirror.com"
 # ======================================================
 # 数据库隔离：db.js 默认使用相对部署目录的 data/（即 $REMOTE_DIR/data），
-# 独立目录 -> 独立 SQLite，天然与 main 分支（/opt/atoms-demo/data）隔离，无需额外配置。
+# 独立目录 -> 独立 SQLite，天然与其它分支隔离，无需额外配置。
 
 echo "==> [1/5] 运行测试"
 npm test
